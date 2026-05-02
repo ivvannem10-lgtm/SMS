@@ -1,0 +1,380 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Google Fonts ─────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap');
+
+/* ══════════════════════════════════════════════════════════════════════════
+   School Eco Design System — Token System
+   Source: colors_and_type.css (canonical)
+   ══════════════════════════════════════════════════════════════════════════ */
+:root {
+
+  /* ── Brand Navy Palette ──────────────────────────────────────────────── */
+  --color-brand-50:  #eef3fb;   /* soft bg tints */
+  --color-brand-100: #dce8f7;   /* card tints, table header bg */
+  --color-brand-200: #b9d1ef;   /* borders on brand elements */
+  --color-brand-300: #7aaae0;   /* icon accent in sidebar */
+  --color-brand-400: #4a80cc;   /* mid accent */
+  --color-brand-500: #1a4a8a;   /* PRIMARY — buttons, accents, active */
+  --color-brand-600: #163d73;   /* hover */
+  --color-brand-700: #11305c;   /* active/pressed */
+  --color-brand-800: #0d2445;   /* deep */
+  --color-brand-900: #09182e;   /* Super Admin badge, modal backdrop */
+
+  /* ── Sidebar Palette (Deep University Navy) ──────────────────────────── */
+  --color-sidebar-bg:      #0c1e3d;
+  --color-sidebar-hover:   #132748;
+  --color-sidebar-active:  #1a3259;
+  --color-sidebar-border:  #1e3a6a;
+  --color-sidebar-text:    #7898c0;
+  --color-sidebar-muted:   #3d5a80;
+  --color-sidebar-heading: #2c4a72;
+
+  /* ── Gold Accent (use sparingly — premium/institutional) ─────────────── */
+  --color-gold-50:  #fdf8e8;
+  --color-gold-100: #faefc5;
+  --color-gold-400: #d4aa3a;
+  --color-gold-500: #c9a224;
+  --color-gold-600: #b08c1e;
+
+  /* ── Surface / Backgrounds ───────────────────────────────────────────── */
+  --color-surface:         #f3f6fb;   /* page background (blue-tinted) */
+  --color-surface-card:    #ffffff;   /* card surface */
+  --color-surface-hover:   #eef3fa;   /* hover state */
+  --color-surface-dark:    #0c1225;   /* login/dark screen bg */
+
+  /* ── Text ────────────────────────────────────────────────────────────── */
+  --color-text-primary:   #0d1f3c;   /* near-black with navy tint */
+  --color-text-secondary: #4a5878;
+  --color-text-muted:     #8b9ab4;
+
+  /* ── Borders ─────────────────────────────────────────────────────────── */
+  --color-border:        #e4ebf5;   /* default card border */
+  --color-border-strong: #dce8f7;   /* table headers, input borders */
+
+  /* ── Semantic States ─────────────────────────────────────────────────── */
+  --color-success: #059669;
+  --color-warning: #d97706;
+  --color-danger:  #dc2626;
+  --color-info:    #2563eb;
+
+  /* ── Semantic Composites (badge backgrounds) ─────────────────────────── */
+  --color-success-bg:   #ecfdf5;
+  --color-success-ring: #a7f3d0;
+  --color-warning-bg:   #fffbeb;
+  --color-warning-ring: #fde68a;
+  --color-danger-bg:    #fef2f2;
+  --color-danger-ring:  #fecaca;
+  --color-info-bg:      #eff6ff;
+  --color-info-ring:    #bfdbfe;
+
+  /* ── Font Families ───────────────────────────────────────────────────── */
+  --font-sans:    'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-mono:    'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+
+  /* ── Type Scale (base: 15px) ─────────────────────────────────────────── */
+  --font-size-2xs:  0.625rem;   /* 10px — table headers, labels */
+  --font-size-xs:   0.75rem;    /* 12px — captions, meta */
+  --font-size-sm:   0.875rem;   /* 14px — body small, badges */
+  --font-size-base: 0.9375rem;  /* 15px — body default */
+  --font-size-md:   1rem;       /* 16px */
+  --font-size-lg:   1.125rem;   /* 18px — h2 */
+  --font-size-xl:   1.25rem;    /* 20px — h1 */
+  --font-size-2xl:  1.5rem;     /* 24px — stat values */
+  --font-size-3xl:  1.875rem;   /* 30px — hero display */
+
+  /* ── Line Heights ────────────────────────────────────────────────────── */
+  --line-height-tight:   1.25;
+  --line-height-snug:    1.375;
+  --line-height-normal:  1.6;
+  --line-height-relaxed: 1.75;
+
+  /* ── Font Weights ────────────────────────────────────────────────────── */
+  --font-weight-light:     300;
+  --font-weight-regular:   400;
+  --font-weight-medium:    500;
+  --font-weight-semibold:  600;
+  --font-weight-bold:      700;
+  --font-weight-extrabold: 800;
+
+  /* ── Letter Spacing ──────────────────────────────────────────────────── */
+  --tracking-tight:   -0.025em;
+  --tracking-normal:   0em;
+  --tracking-wide:     0.025em;
+  --tracking-wider:    0.05em;
+  --tracking-widest:   0.1em;   /* table column headers */
+
+  /* ── Spacing Scale ───────────────────────────────────────────────────── */
+  --space-1:  0.25rem;   /* 4px */
+  --space-2:  0.5rem;    /* 8px */
+  --space-3:  0.75rem;   /* 12px */
+  --space-4:  1rem;      /* 16px */
+  --space-5:  1.25rem;   /* 20px */
+  --space-6:  1.5rem;    /* 24px */
+  --space-8:  2rem;      /* 32px */
+  --space-10: 2.5rem;    /* 40px */
+  --space-12: 3rem;      /* 48px */
+
+  /* ── Layout ──────────────────────────────────────────────────────────── */
+  --nav-width:     220px;
+  --header-height: 56px;   /* h-14 */
+
+  /* ── Border Radius Scale ─────────────────────────────────────────────── */
+  --radius-sm:   6px;
+  --radius-md:   8px;
+  --radius-lg:   10px;     /* buttons, inputs */
+  --radius-xl:   14px;     /* cards */
+  --radius-2xl:  20px;     /* modals */
+  --radius-full: 9999px;   /* badges, avatars, scrollbar */
+
+  /* ── Shadows / Elevation ─────────────────────────────────────────────── */
+  --shadow-card:    0 1px 3px 0 rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04);
+  --shadow-card-md: 0 4px 12px 0 rgba(0,0,0,0.09), 0 0 0 1px rgba(0,0,0,0.04);
+  --shadow-card-lg: 0 8px 28px 0 rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04);
+  --shadow-inner:   inset 0 1px 2px 0 rgba(0,0,0,0.05);
+  --shadow-glow:    0 0 0 3px rgba(26,74,138,0.18);   /* brand focus ring */
+
+  /* ── Animation ───────────────────────────────────────────────────────── */
+  --duration-fast:    150ms;
+  --duration-default: 250ms;
+  --ease-default:     cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Base layer ────────────────────────────────────────────────────────────── */
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html {
+    font-family: var(--font-sans);
+    font-size: 15px;
+    -webkit-font-smoothing:  antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-surface font-sans;
+    color: var(--color-text-primary);
+    line-height: var(--line-height-normal);
+  }
+
+  /* ── Heading hierarchy ──────────────────────────────────────────────── */
+  h1 {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-tight);
+    letter-spacing: var(--tracking-tight);
+    color: var(--color-text-primary);
+  }
+  h2 {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-snug);
+    color: var(--color-text-primary);
+  }
+  h3 {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-snug);
+    color: var(--color-text-primary);
+  }
+  p {
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-normal);
+    color: var(--color-text-secondary);
+  }
+
+  /* ── Links ──────────────────────────────────────────────────────────── */
+  a {
+    color: var(--color-brand-500);
+    transition: color var(--duration-fast) var(--ease-default);
+  }
+  a:hover { color: var(--color-brand-600); }
+
+  /* ── Form labels ────────────────────────────────────────────────────── */
+  label {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: #374151;
+    letter-spacing: var(--tracking-wide);
+  }
+
+  /* ── Minimal scrollbar ──────────────────────────────────────────────── */
+  ::-webkit-scrollbar             { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track       { background: transparent; }
+  ::-webkit-scrollbar-thumb       { background: #dce8f7; border-radius: var(--radius-full); }
+  ::-webkit-scrollbar-thumb:hover { background: #b9d1ef; }
+
+  /* ── Focus rings — university navy ─────────────────────────────────── */
+  *:focus-visible {
+    outline:        2px solid var(--color-brand-500);
+    outline-offset: 2px;
+  }
+}
+
+/* ── Utility extensions ────────────────────────────────────────────────────── */
+@layer utilities {
+  /* 10px text */
+  .text-2xs { font-size: 10px; line-height: 14px; }
+
+  /* Display font */
+  .font-display { font-family: var(--font-display); font-weight: 700; }
+
+  /* Mono font */
+  .font-mono { font-family: var(--font-mono); }
+
+  /* Glass morphism */
+  .glass { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+
+  /* Section heading with navy left accent bar */
+  .section-accent {
+    position: relative;
+    padding-left: 0.875rem;
+  }
+  .section-accent::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.2em;
+    bottom: 0.2em;
+    width: 3px;
+    border-radius: var(--radius-full);
+    background: var(--color-brand-500);
+  }
+
+  /* Stat value */
+  .stat-value {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    color: #0f172a;
+  }
+
+  /* Table header */
+  .th {
+    font-size: var(--font-size-2xs);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-brand-700);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-widest);
+  }
+
+  /* Divider */
+  .ui-divider {
+    border: none;
+    border-top: 1px solid var(--color-border);
+  }
+
+  /* Table header tint */
+  .ui-thead-bg {
+    background-color: #f0f4fa;
+    border-bottom: 1px solid var(--color-border-strong);
+  }
+
+  /* Page fade-in */
+  .page-content {
+    animation: fadeIn 0.18s ease-out;
+  }
+
+  /* Dashboard card entrance — pair with style={{ animationDelay }} for stagger */
+  .animate-slide-up {
+    animation: slideUp 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
+/* ── Component shortcuts ───────────────────────────────────────────────────── */
+@layer components {
+
+  /* University card */
+  .uc-card {
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Primary button */
+  .uc-btn-primary {
+    background-color: var(--color-brand-500);
+    color: #fff;
+    border-radius: var(--radius-lg);
+    font-weight: var(--font-weight-semibold);
+    transition: background-color var(--duration-fast) var(--ease-default),
+                box-shadow var(--duration-fast) var(--ease-default);
+  }
+  .uc-btn-primary:hover  { background-color: var(--color-brand-600); }
+  .uc-btn-primary:active { background-color: var(--color-brand-700); }
+
+  /* Input with focus glow */
+  .uc-input {
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-lg);
+    transition: border-color var(--duration-fast) var(--ease-default),
+                box-shadow var(--duration-fast) var(--ease-default);
+  }
+  .uc-input:focus {
+    border-color: var(--color-brand-500);
+    box-shadow: var(--shadow-glow);
+    outline: none;
+  }
+
+  /* Code / mono chip */
+  code {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    background: var(--color-brand-50);
+    color: var(--color-brand-700);
+    padding: 0.125rem 0.375rem;
+    border-radius: var(--radius-sm);
+  }
+}
+
+/* ── Dark mode overrides ───────────────────────────────────────────────────── */
+/* Applied when <html class="dark"> is set by ThemeProvider */
+.dark body {
+  background-color: #020617; /* slate-950 */
+  color: #f1f5f9;            /* slate-100 */
+}
+.dark .bg-white { background-color: #1e293b !important; }
+.dark .bg-\[\#f3f6fb\]  { background-color: #0f172a !important; }
+.dark .bg-\[\#f8fafd\]  { background-color: #1e293b !important; }
+.dark .bg-slate-50      { background-color: #1e293b !important; }
+.dark .border-\[\#e4ebf5\] { border-color: #334155 !important; }
+.dark .border-\[\#f0f4fa\] { border-color: #1e3a5f22 !important; }
+.dark .border-slate-100 { border-color: #334155 !important; }
+.dark .border-slate-200 { border-color: #475569 !important; }
+.dark .text-slate-900   { color: #f1f5f9 !important; }
+.dark .text-slate-800   { color: #e2e8f0 !important; }
+.dark .text-slate-700   { color: #cbd5e1 !important; }
+.dark .text-slate-600   { color: #94a3b8 !important; }
+.dark .text-slate-500   { color: #64748b !important; }
+.dark .divide-slate-50 > * + * { border-color: #1e3a5f33 !important; }
+.dark .divide-\[\#f0f4fa\] > * + * { border-color: #1e3a5f33 !important; }
+.dark input, .dark select, .dark textarea {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+.dark .shadow-card { box-shadow: 0 1px 3px 0 rgba(0,0,0,0.4), 0 0 0 1px rgba(0,0,0,0.2); }
+
+/* ── Keyframe animations ───────────────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulseRipple {
+  0%   { transform: scale(1);    opacity: 0.4; }
+  100% { transform: scale(2.4);  opacity: 0; }
+}
