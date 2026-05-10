@@ -131,26 +131,7 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Demo accounts */}
-          <div className="mt-6 rounded-xl border border-white/8 bg-white/3 p-4">
-            <p className="text-2xs font-semibold uppercase tracking-widest text-slate-500 mb-3">
-              Demo accounts · password: <span className="text-slate-400 font-mono">password</span>
-            </p>
-            <div className="grid grid-cols-2 gap-1.5">
-              {DEMO_ACCOUNTS.map((a) => (
-                <button
-                  key={a.email}
-                  type="button"
-                  onClick={() => { setEmail(a.email); setPassword('password'); setError('') }}
-                  className={`rounded-lg px-3 py-1.5 text-left text-xs font-semibold transition-colors ${a.color}`}
-                >
-                  {a.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <p className="mt-5 text-center text-xs text-slate-600">
+          <p className="mt-6 text-center text-xs text-slate-600">
             New applicant?{' '}
             <a href="/apply" className="text-brand-400 hover:text-brand-300 transition-colors">Apply here →</a>
           </p>
