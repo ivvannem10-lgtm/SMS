@@ -15,6 +15,7 @@ const DEMO_ACCOUNTS = [
   { role: 'DEAN',              email: 'dean.business@school.edu',  label: 'Dean — Business',   color: 'bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100' },
   { role: 'DEAN',              email: 'dean.nursing@school.edu',   label: 'Dean — Nursing',    color: 'bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100' },
   { role: 'DEAN',              email: 'dean.arts@school.edu',      label: 'Dean — Arts',       color: 'bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100' },
+  { role: 'HR_STAFF',          email: 'hr@school.edu',             label: 'HR Staff',           color: 'bg-pink-50 text-pink-700 border border-pink-200 hover:bg-pink-100' },
   { role: 'TEACHER',           email: 'prof.santos@school.edu',    label: 'Teacher',            color: 'bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100' },
   { role: 'STUDENT',           email: 'student@school.edu',        label: 'Student',            color: 'bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200' },
 ]

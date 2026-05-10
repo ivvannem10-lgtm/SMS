@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Search, Plus, X, ExternalLink } from 'lucide-react'
+import { Search, Plus, X, ExternalLink, ChevronRight, AlertCircle, CheckCircle2, Clock, CreditCard } from 'lucide-react'
 import { Card, SectionTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
@@ -11,9 +11,135 @@ import { Table, Thead, Th, Tbody, Tr, Td } from '@/components/ui/Table'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge, EnrollmentBadge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { MOCK_STUDENTS, MOCK_ENROLLMENTS, MOCK_SEMESTERS } from '@/lib/mock-data'
+import { MOCK_STUDENTS, MOCK_ENROLLMENTS, MOCK_SEMESTERS, MOCK_SOA } from '@/lib/mock-data'
 import { fullName, yearLevelLabel, formatDate } from '@/lib/utils'
-import type { Student, StudentStatus } from '@/types'
+import type { Student, StudentStatus, SOA } from '@/types'
+
+function php(n: number) {
+  return '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+// ── Balance breakdown modal ───────────────────────────────────────────────────
+function BalanceModal({ soa, onClose }: { soa: SOA; onClose: () => void }) {
+  const METHOD_LABEL: Record<string, string> = {
+    CASH: 'Cash', ONLINE: 'Online', GCASH: 'GCash', BANK: 'Bank Transfer',
+  }
+
+  return (
+    <div className="fixed inset-0 z-[300] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-[440px] mx-4 rounded-2xl bg-white shadow-2xl overflow-hidden">
+
+        {/* Header */}
+        <div className="bg-[#0c1e3d] px-5 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CreditCard className="h-4 w-4 text-blue-300" />
+            <p className="text-sm font-bold text-white">Balance Breakdown</p>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-white/10 transition-colors">
+            <X className="h-4 w-4 text-white/60" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto max-h-[70vh]">
+          {/* Summary bar */}
+          <div className="grid grid-cols-3 divide-x divide-slate-100 border-b border-slate-100">
+            {[
+              { label: 'Total',     value: php(soa.totalAmount),  cls: 'text-slate-800' },
+              { label: 'Paid',      value: php(soa.paidAmount),   cls: 'text-emerald-600' },
+              { label: 'Balance',   value: php(soa.balance),      cls: soa.balance > 0 ? 'text-red-600 font-extrabold' : 'text-emerald-600' },
+            ].map(s => (
+              <div key={s.label} className="flex flex-col items-center py-4 px-2">
+                <p className={`text-base font-bold tabular-nums ${s.cls}`}>{s.value}</p>
+                <p className="text-[10px] text-slate-400 uppercase tracking-wide mt-0.5">{s.label}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="p-4 space-y-4">
+            {/* Fee breakdown */}
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Fee Breakdown</p>
+              <div className="rounded-xl border border-[#e4ebf5] overflow-hidden">
+                <table className="w-full">
+                  <tbody className="divide-y divide-[#f0f4fa]">
+                    {(soa.items ?? []).filter(i => !i.voided).map(item => (
+                      <tr key={item.id}>
+                        <td className="py-2.5 pl-4 pr-2 text-xs text-slate-700">{item.description}</td>
+                        <td className="py-2.5 pl-2 pr-4 text-right text-xs font-semibold text-slate-800 font-mono">
+                          {php(item.amount)}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="bg-slate-50">
+                      <td className="py-2.5 pl-4 pr-2 text-xs font-bold text-slate-600">Total</td>
+                      <td className="py-2.5 pl-2 pr-4 text-right text-xs font-bold text-slate-800 font-mono">
+                        {php(soa.totalAmount)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Payment history */}
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Payment History</p>
+              {(soa.payments ?? []).length === 0 ? (
+                <div className="rounded-xl border border-[#e4ebf5] bg-white px-4 py-3">
+                  <span className="text-xs text-slate-400 italic">No payments recorded</span>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-[#e4ebf5] overflow-hidden">
+                  <table className="w-full">
+                    <tbody className="divide-y divide-[#f0f4fa]">
+                      {(soa.payments ?? []).map(p => (
+                        <tr key={p.id}>
+                          <td className="py-2.5 pl-4 pr-2">
+                            <p className="text-xs font-semibold text-slate-700">{METHOD_LABEL[p.method] ?? p.method}</p>
+                            {p.receiptNumber && (
+                              <p className="text-[10px] text-slate-400 font-mono">{p.receiptNumber}</p>
+                            )}
+                          </td>
+                          <td className="py-2.5 pl-2 pr-4 text-right">
+                            <p className="text-xs font-bold text-emerald-600 font-mono">{php(p.amount)}</p>
+                            <p className="text-[10px] text-slate-400">
+                              {p.validatedAt
+                                ? new Date(p.validatedAt).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
+                                : '—'}
+                            </p>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Remaining balance callout */}
+            {soa.balance > 0 && (
+              <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+                <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-red-700">Outstanding Balance</p>
+                  <p className="text-sm font-extrabold text-red-600 tabular-nums">{php(soa.balance)}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="border-t border-slate-100 px-5 py-3">
+          <button onClick={onClose}
+            className="w-full rounded-xl border border-slate-200 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ── Student quick-view drawer ─────────────────────────────────────────────────
 
@@ -25,6 +151,10 @@ function StudentDrawer({ student, enrolledIds, activeSemId, onClose }: {
 }) {
   const isEnrolled = enrolledIds.has(student.id)
   const enrollments = MOCK_ENROLLMENTS.filter((e) => e.studentId === student.id && e.semesterId === activeSemId)
+  const soa         = MOCK_SOA.find(s => s.studentId === student.id && s.semesterId === activeSemId)
+  const hasBalance  = soa && soa.balance > 0
+
+  const [balanceOpen, setBalanceOpen] = useState(false)
 
   function Row({ label, value }: { label: string; value?: string | null }) {
     return (
@@ -48,24 +178,27 @@ function StudentDrawer({ student, enrolledIds, activeSemId, onClose }: {
       <div className="fixed inset-y-0 right-0 z-[36] flex w-full max-w-[460px] flex-col bg-white border-l border-[#e4ebf5] shadow-2xl">
 
         {/* Header */}
-        <div className="shrink-0 bg-[#0c1e3d] px-5 py-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <Avatar name={fullName(student)} size="md" />
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-white truncate">{fullName(student)}</p>
-                <p className="text-xs text-blue-300 mt-0.5">{student.email}</p>
-                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                  <code className="text-[10px] bg-white/10 text-blue-200 px-2 py-0.5 rounded font-mono">{student.studentId}</code>
-                  <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${statusColors[student.status] ?? 'bg-slate-100 text-slate-500'}`}>
-                    {student.status}
-                  </span>
-                </div>
-              </div>
+        <div className="shrink-0 bg-[#0c1e3d] flex items-stretch">
+          {/* Square profile photo */}
+          <div className="flex h-[130px] w-[110px] shrink-0 items-center justify-center bg-brand-700/60 text-4xl font-extrabold text-white tracking-tight select-none">
+            {fullName(student).split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
+          </div>
+
+          {/* Info */}
+          <div className="flex flex-1 min-w-0 flex-col justify-center gap-1.5 px-4 py-4">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-sm font-bold text-white leading-snug">{fullName(student)}</p>
+              <button onClick={onClose} className="shrink-0 rounded-lg p-1 hover:bg-white/10 transition-colors mt-0.5">
+                <X className="h-4 w-4 text-white/50" />
+              </button>
             </div>
-            <button onClick={onClose} className="shrink-0 rounded-lg p-1.5 hover:bg-white/10 transition-colors">
-              <X className="h-4 w-4 text-white/60" />
-            </button>
+            <p className="text-xs text-blue-300">{student.email}</p>
+            <div className="flex items-center gap-2 flex-wrap mt-0.5">
+              <code className="text-[10px] bg-white/10 text-blue-200 px-2 py-0.5 rounded font-mono">{student.studentId}</code>
+              <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${statusColors[student.status] ?? 'bg-slate-100 text-slate-500'}`}>
+                {student.status}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -106,8 +239,43 @@ function StudentDrawer({ student, enrolledIds, activeSemId, onClose }: {
               ))}
             </div>
           )}
-        </div>
 
+          {/* ── Pending Balance ─────────────────────────────────────── */}
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Account Balance</p>
+          {!soa ? (
+            <div className="rounded-xl border border-[#e4ebf5] bg-white px-4 py-3">
+              <span className="text-xs text-slate-400 italic">No statement of account this semester</span>
+            </div>
+          ) : soa.balance === 0 ? (
+            <div className="flex items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+              <div>
+                <p className="text-xs font-bold text-emerald-700">Fully Paid</p>
+                <p className="text-[11px] text-emerald-600">Total paid: {php(soa.paidAmount)}</p>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setBalanceOpen(true)}
+              className="w-full flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 px-4 py-3 transition-colors text-left group"
+            >
+              <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-bold text-red-700">
+                    {soa.status === 'PARTIAL' ? 'Partial Payment' : 'Unpaid Balance'}
+                  </p>
+                  {soa.status === 'PARTIAL' && (
+                    <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 uppercase tracking-wide">Partial</span>
+                  )}
+                </div>
+                <p className="text-base font-extrabold text-red-600 tabular-nums leading-tight">{php(soa.balance)}</p>
+                <p className="text-[10px] text-red-400 mt-0.5">of {php(soa.totalAmount)} total · {php(soa.paidAmount)} paid</p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-red-400 group-hover:text-red-600 shrink-0 transition-colors" />
+            </button>
+          )}
+        </div>
         {/* Footer */}
         <div className="shrink-0 border-t border-[#e4ebf5] bg-white px-4 py-3">
           <Link href={`/staff/registrar/${student.id}`}
@@ -116,6 +284,10 @@ function StudentDrawer({ student, enrolledIds, activeSemId, onClose }: {
           </Link>
         </div>
       </div>
+
+      {balanceOpen && soa && (
+        <BalanceModal soa={soa} onClose={() => setBalanceOpen(false)} />
+      )}
     </>
   )
 }
@@ -236,7 +408,7 @@ function RegistrarPageInner() {
         </Select>
       </div>
 
-      {/* ── Student table — all departments ───────────────────────────────── */}
+      {/* ── Student table ─────────────────────────────────────────────────── */}
       <Card padding="none">
         <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
           <p className="text-xs text-slate-500">
@@ -269,17 +441,18 @@ function RegistrarPageInner() {
                   (e) => e.studentId === student.id && e.semesterId === stats.activeSemId,
                 )
                 const subjectCount = MOCK_ENROLLMENTS.filter((e) => e.studentId === student.id).length
+                const initials = fullName(student).split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
 
                 return (
-                  <Tr
-                    key={student.id}
-                    onClick={() => setViewStudent(student)}
-                  >
+                  <Tr key={student.id} onClick={() => setViewStudent(student)}>
                     <Td>
-                      <div className="flex items-center gap-2.5">
-                        <Avatar name={fullName(student)} size="sm" />
+                      <div className="flex items-center gap-3">
+                        {/* Square photo avatar */}
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-500 text-sm font-bold text-white">
+                          {initials}
+                        </div>
                         <div>
-                          <p className="font-medium text-slate-900">{fullName(student)}</p>
+                          <p className="font-semibold text-slate-900">{fullName(student)}</p>
                           <p className="text-xs text-slate-400">{student.email}</p>
                         </div>
                       </div>

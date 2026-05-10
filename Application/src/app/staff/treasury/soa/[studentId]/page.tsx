@@ -225,6 +225,122 @@ export default function SOADetailPage({ params }: { params: { studentId: string 
   const payAmt = parseFloat(payAmount) || 0
   const overpayPreview = payAmt > balance ? payAmt - balance : 0
 
+  function handlePrint() {
+    const win = window.open('', '_blank', 'width=860,height=1100')
+    if (!win) return
+
+    const rowsHtml = (items: typeof activeItems) =>
+      items.map(i => `<tr><td>${i.description}</td><td class="r">${formatCurrency(i.amount)}</td></tr>`).join('')
+
+    const payRowsHtml = (payments: typeof soa.payments) =>
+      (payments ?? []).filter(p => p.status === 'VALIDATED').map(p => `<tr>
+        <td>${formatDate(p.createdAt)}</td>
+        <td>${p.method}</td>
+        <td class="mono">${p.receiptNumber ?? '—'}</td>
+        ${p.referenceNumber ? `<td>${p.referenceNumber}</td>` : '<td>—</td>'}
+        <td class="r">${formatCurrency(p.amount)}</td>
+      </tr>`).join('')
+
+    const statusLabels: Record<string, string> = { PAID: 'FULLY PAID', PARTIAL: 'PARTIALLY PAID', UNPAID: 'UNPAID', OVERPAID: 'OVERPAID' }
+    const statusClasses: Record<string, string> = { PAID: 'paid', PARTIAL: 'partial', UNPAID: 'unpaid', OVERPAID: 'over' }
+    const sl = statusLabels[status] ?? status
+    const sc = statusClasses[status] ?? 'unpaid'
+    const issued = new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
+
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+    <title>SOA — ${studentName}</title>
+    <style>
+      *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#111;padding:32px 40px}
+      .top{text-align:center;border-bottom:2px solid #1a4a8a;padding-bottom:14px;margin-bottom:18px}
+      .top h1{font-size:18px;color:#1a4a8a;font-weight:700}
+      .top .sub{font-size:13px;font-weight:700;margin-top:2px}
+      .top .sem{font-size:11px;color:#555;margin-top:2px}
+      .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 24px;margin-bottom:16px}
+      .info-grid .field{font-size:11px;color:#666}
+      .info-grid .value{font-weight:600;font-size:13px}
+      .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}
+      .box{border:1px solid #dce8f7;border-radius:6px;padding:10px 12px;text-align:center}
+      .box .bl{font-size:10px;color:#888;margin-bottom:2px}
+      .box .bv{font-size:15px;font-weight:700}
+      .box.red .bv{color:#dc2626}.box.green .bv{color:#059669}.box.blue .bv{color:#1d4ed8}
+      h2{font-size:12px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.05em;margin:16px 0 6px}
+      .cat{font-size:10px;font-weight:700;color:#1a4a8a;text-transform:uppercase;letter-spacing:.05em;padding:8px 0 2px}
+      table{width:100%;border-collapse:collapse;margin-bottom:4px}
+      th{background:#f0f4fa;color:#1a4a8a;font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:6px 10px;text-align:left}
+      td{padding:5px 10px;border-bottom:1px solid #f3f4f6}
+      .r{text-align:right}.mono{font-family:monospace;font-size:11px}
+      .total-row td{font-weight:700;background:#f9fafb;border-top:2px solid #e5e7eb}
+      .paid-row td{color:#059669}
+      .bal-row td{font-weight:700;color:${balance > 0 ? '#dc2626' : '#059669'};border-top:1px solid #e5e7eb}
+      .ov-row td{font-weight:700;color:#1d4ed8;border-top:1px solid #e5e7eb}
+      .badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700;text-transform:uppercase;margin-left:6px}
+      .badge.paid{background:#d1fae5;color:#065f46}.badge.partial{background:#fef3c7;color:#92400e}
+      .badge.unpaid{background:#fee2e2;color:#991b1b}.badge.over{background:#dbeafe;color:#1e40af}
+      .sigs{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:40px}
+      .sig-block{text-align:center}
+      .sig-line{border-top:1px solid #333;margin-top:36px;padding-top:4px;font-size:11px;color:#555}
+      .fn{text-align:center;font-size:10px;color:#aaa;margin-top:20px;border-top:1px dashed #e5e7eb;padding-top:8px}
+      @media print{@page{margin:1.5cm}}
+    </style></head><body>
+    <div class="top">
+      <h1>SchoolEco University</h1>
+      <div class="sub">STATEMENT OF ACCOUNT</div>
+      <div class="sem">${activeSem?.name ?? '1st Semester 2025–2026'} &nbsp;|&nbsp; Issued: ${issued}</div>
+    </div>
+
+    <div class="info-grid">
+      <div><div class="field">Student Name</div><div class="value">${studentName} <span class="badge ${sc}">${sl}</span></div></div>
+      <div><div class="field">Student No.</div><div class="value">${studentNo}</div></div>
+      <div><div class="field">Program</div><div class="value">${student?.program?.name ?? '—'}</div></div>
+      <div><div class="field">Date Issued</div><div class="value">${issued}</div></div>
+    </div>
+
+    <div class="summary">
+      <div class="box"><div class="bl">Total Billed</div><div class="bv">${formatCurrency(total)}</div></div>
+      <div class="box green"><div class="bl">Amount Paid</div><div class="bv">${formatCurrency(paid)}</div></div>
+      <div class="box ${over > 0 ? 'blue' : balance > 0 ? 'red' : 'green'}">
+        <div class="bl">${over > 0 ? 'Overpayment' : 'Balance Due'}</div>
+        <div class="bv">${over > 0 ? `+${formatCurrency(over)}` : formatCurrency(balance)}</div>
+      </div>
+    </div>
+
+    <h2>Billing Breakdown</h2>
+    ${tuitionItems.length > 0 ? `<div class="cat">Tuition Fees</div><table><thead><tr><th>Description</th><th class="r">Amount</th></tr></thead><tbody>${rowsHtml(tuitionItems)}</tbody></table>` : ''}
+    ${labItems.length > 0 ? `<div class="cat">Laboratory Fees</div><table><thead><tr><th>Description</th><th class="r">Amount</th></tr></thead><tbody>${rowsHtml(labItems)}</tbody></table>` : ''}
+    ${miscItems.length > 0 ? `<div class="cat">Miscellaneous Fees</div><table><thead><tr><th>Description</th><th class="r">Amount</th></tr></thead><tbody>${rowsHtml(miscItems)}</tbody></table>` : ''}
+    ${otherItems.length > 0 ? `<div class="cat">Fines &amp; Others</div><table><thead><tr><th>Description</th><th class="r">Amount</th></tr></thead><tbody>${rowsHtml(otherItems)}</tbody></table>` : ''}
+
+    <table style="margin-top:10px">
+      <tbody>
+        <tr class="total-row"><td><strong>TOTAL BILLED</strong></td><td class="r"><strong>${formatCurrency(total)}</strong></td></tr>
+        <tr class="paid-row"><td>Amount Paid</td><td class="r">(${formatCurrency(paid)})</td></tr>
+        ${over > 0
+          ? `<tr class="ov-row"><td><strong>OVERPAYMENT</strong></td><td class="r"><strong>+${formatCurrency(over)}</strong></td></tr>`
+          : `<tr class="bal-row"><td><strong>BALANCE DUE</strong></td><td class="r"><strong>${formatCurrency(balance)}</strong></td></tr>`
+        }
+      </tbody>
+    </table>
+
+    ${(soa.payments?.length ?? 0) > 0 ? `
+    <h2 style="margin-top:20px">Payment History</h2>
+    <table>
+      <thead><tr><th>Date</th><th>Method</th><th>OR No.</th><th>Reference</th><th class="r">Amount</th></tr></thead>
+      <tbody>${payRowsHtml(soa.payments)}</tbody>
+    </table>` : ''}
+
+    <div class="sigs">
+      <div class="sig-block"><div class="sig-line">Cashier's Signature over Printed Name</div></div>
+      <div class="sig-block"><div class="sig-line">Student's Signature over Printed Name</div></div>
+    </div>
+    <div class="fn">This is an official document issued by the Treasury Office. &nbsp;·&nbsp; Processed by: ${cashier}</div>
+    </body></html>`)
+
+    win.document.close()
+    win.focus()
+    setTimeout(() => { win.print(); win.close() }, 400)
+  }
+
   return (
     <div className="max-w-4xl space-y-5">
       <Link href="/staff/treasury" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors">
@@ -251,7 +367,7 @@ export default function SOADetailPage({ params }: { params: { studentId: string 
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <SOABadge status={status} />
-                <Button variant="outline" size="sm" icon={<Printer className="h-3.5 w-3.5" />}>Print SOA</Button>
+                <Button variant="outline" size="sm" icon={<Printer className="h-3.5 w-3.5" />} onClick={handlePrint}>Print SOA</Button>
                 <Button variant="soft"    size="sm" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setChargeModal(true)}>Add Charge</Button>
                 {balance > 0 && (
                   <Button size="sm" variant="success" icon={<Receipt className="h-3.5 w-3.5" />} onClick={() => { setPayAmount(''); setPayModal(true) }}>

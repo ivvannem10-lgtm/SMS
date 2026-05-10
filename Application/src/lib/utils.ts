@@ -123,7 +123,9 @@ export const ROLE_LABELS: Record<string, string> = {
   REGISTRAR: 'Registrar',
   TREASURER: 'Treasurer',
   ACADEMIC_ADMIN: 'Academic Admin',
+  ACCOUNTING: 'Accounting',
   DEAN: 'Dean',
+  HR_STAFF: 'HR Staff',
   TEACHER: 'Teacher',
   STUDENT: 'Student',
 }
@@ -148,7 +150,9 @@ export const ROLE_PORTALS: Record<string, string> = {
   REGISTRAR: '/staff/registrar',
   TREASURER: '/staff/treasury',
   ACADEMIC_ADMIN: '/staff/academic',
+  ACCOUNTING: '/staff/treasury/budget',
   DEAN: '/staff/dean',
+  HR_STAFF: '/staff/hr',
   TEACHER: '/teacher/dashboard',
   STUDENT: '/student/dashboard',
 }

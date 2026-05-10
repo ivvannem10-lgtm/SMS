@@ -1,18 +1,21 @@
 'use client'
-import { use } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, BookOpen, ClipboardList, HelpCircle, BarChart2, Users, Settings } from 'lucide-react'
+import { ArrowLeft, BookOpen, ClipboardList, HelpCircle, BarChart2, Users, Settings, UserCheck, Megaphone, MessageSquare, Star } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
-import { MOCK_OFFERINGS, MOCK_MODULES, MOCK_ASSIGNMENTS, MOCK_QUIZZES } from '@/lib/mock-data'
+import { MOCK_OFFERINGS, MOCK_MODULES, MOCK_ASSIGNMENTS, MOCK_QUIZZES, MOCK_PERFORMANCE_TASKS } from '@/lib/mock-data'
 import { formatTime, DAY_ABBR } from '@/lib/utils'
 
 const SUB_PAGES = [
-  { href: 'materials',   label: 'Learning Materials', icon: BookOpen,     desc: 'Modules, PDFs, videos',         color: 'bg-blue-50 text-blue-600' },
-  { href: 'assignments', label: 'Assignments',         icon: ClipboardList, desc: 'Create & grade assignments',   color: 'bg-violet-50 text-violet-600' },
-  { href: 'quizzes',     label: 'Quizzes & Exams',    icon: HelpCircle,   desc: 'Time-limited assessments',      color: 'bg-amber-50 text-amber-600' },
-  { href: 'grades',      label: 'Grade Book',          icon: BarChart2,    desc: 'Compute & submit grades',       color: 'bg-emerald-50 text-emerald-600' },
-  { href: 'criteria',    label: 'Grading Criteria',    icon: Settings,     desc: 'Set grade weights & formula',   color: 'bg-brand-50 text-brand-600' },
-  { href: 'students',    label: 'Student List',         icon: Users,        desc: 'View enrolled students',        color: 'bg-orange-50 text-orange-600' },
+  { href: 'materials',          label: 'Learning Materials',  icon: BookOpen,      desc: 'Modules, PDFs, videos',         color: 'bg-blue-50 text-blue-600' },
+  { href: 'assignments',        label: 'Assignments',          icon: ClipboardList, desc: 'Create & grade assignments',    color: 'bg-violet-50 text-violet-600' },
+  { href: 'quizzes',            label: 'Quizzes & Exams',     icon: HelpCircle,    desc: 'Time-limited assessments',      color: 'bg-amber-50 text-amber-600' },
+  { href: 'performance-tasks',  label: 'Performance Tasks',   icon: Star,          desc: 'Rubric-based grading',          color: 'bg-rose-50 text-rose-600' },
+  { href: 'grades',             label: 'Grade Book',           icon: BarChart2,     desc: 'Compute & submit grades',       color: 'bg-emerald-50 text-emerald-600' },
+  { href: 'attendance',         label: 'Attendance',           icon: UserCheck,     desc: 'Record & view attendance',      color: 'bg-teal-50 text-teal-600' },
+  { href: 'announcements',      label: 'Announcements',        icon: Megaphone,     desc: 'Post course announcements',     color: 'bg-red-50 text-red-600' },
+  { href: 'discussions',        label: 'Discussions',          icon: MessageSquare, desc: 'Manage student discussions',    color: 'bg-indigo-50 text-indigo-600' },
+  { href: 'criteria',           label: 'Grading Criteria',     icon: Settings,      desc: 'Set grade weights & formula',   color: 'bg-brand-50 text-brand-600' },
+  { href: 'students',           label: 'Student List',          icon: Users,         desc: 'View enrolled students',        color: 'bg-orange-50 text-orange-600' },
 ]
 
 export default function TeacherSubjectPage({ params }: { params: { offeringId: string } }) {
@@ -20,9 +23,10 @@ export default function TeacherSubjectPage({ params }: { params: { offeringId: s
   const offering = MOCK_OFFERINGS.find((o) => o.id === offeringId)
   if (!offering) return <div className="py-20 text-center text-slate-500">Subject not found.</div>
 
-  const moduleCount = MOCK_MODULES.filter((m) => m.offeringId === offeringId).length
+  const moduleCount     = MOCK_MODULES.filter((m) => m.offeringId === offeringId).length
   const assignmentCount = MOCK_ASSIGNMENTS.filter((a) => a.offeringId === offeringId).length
-  const quizCount = MOCK_QUIZZES.filter((q) => q.offeringId === offeringId).length
+  const quizCount       = MOCK_QUIZZES.filter((q) => q.offeringId === offeringId).length
+  const ptCount         = MOCK_PERFORMANCE_TASKS.filter((p) => p.offeringId === offeringId).length
 
   return (
     <div className="max-w-4xl space-y-5">
@@ -75,7 +79,8 @@ export default function TeacherSubjectPage({ params }: { params: { offeringId: s
       <div className="grid grid-cols-3 gap-4">
         {[{ label: 'Modules Published', value: MOCK_MODULES.filter((m) => m.offeringId === offeringId && m.isPublished).length, total: moduleCount },
           { label: 'Assignments Active', value: MOCK_ASSIGNMENTS.filter((a) => a.offeringId === offeringId && a.isPublished).length, total: assignmentCount },
-          { label: 'Quizzes Published', value: MOCK_QUIZZES.filter((q) => q.offeringId === offeringId && q.isPublished).length, total: quizCount }].map((stat) => (
+          { label: 'Quizzes Published', value: MOCK_QUIZZES.filter((q) => q.offeringId === offeringId && q.isPublished).length, total: quizCount },
+          { label: 'Performance Tasks', value: MOCK_PERFORMANCE_TASKS.filter((p) => p.offeringId === offeringId && p.isPublished).length, total: ptCount }].map((stat) => (
           <Card key={stat.label}>
             <p className="text-xs text-slate-500">{stat.label}</p>
             <p className="mt-1 text-2xl font-bold text-slate-900">{stat.value}<span className="text-sm font-normal text-slate-400">/{stat.total}</span></p>

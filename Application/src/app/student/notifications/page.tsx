@@ -13,6 +13,7 @@ export default function NotificationsPage() {
   const unread = notifications.filter((n) => !n.isRead).length
 
   function markAllRead() {
+    MOCK_NOTIFICATIONS.forEach(n => { n.isRead = true })
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
   }
 
@@ -30,7 +31,11 @@ export default function NotificationsPage() {
           const Icon = TYPE_ICONS[notif.type] ?? Bell
           return (
             <div key={notif.id}
-              onClick={() => setNotifications((prev) => prev.map((n) => n.id === notif.id ? { ...n, isRead: true } : n))}
+              onClick={() => {
+                const m = MOCK_NOTIFICATIONS.find(n => n.id === notif.id)
+                if (m) m.isRead = true
+                setNotifications((prev) => prev.map((n) => n.id === notif.id ? { ...n, isRead: true } : n))
+              }}
               className={`flex items-start gap-4 rounded-xl border p-4 cursor-pointer transition-all ${!notif.isRead ? 'border-blue-200 bg-blue-50/50 hover:bg-blue-50' : 'border-slate-100 bg-white hover:bg-slate-50'}`}
             >
               <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${TYPE_COLORS[notif.type] ?? 'bg-slate-100 text-slate-600'}`}>

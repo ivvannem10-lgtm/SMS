@@ -3,13 +3,14 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
-import { LayoutDashboard, BookOpen, LogOut, GraduationCap, CalendarDays, Users } from 'lucide-react'
+import { LayoutDashboard, BookOpen, LogOut, GraduationCap, CalendarDays, Users, ClipboardCheck } from 'lucide-react'
 import { cn, initials } from '@/lib/utils'
 
 const NAV = [
   { href: '/teacher/dashboard', label: 'Dashboard',   icon: LayoutDashboard },
-  { href: '/teacher/subjects',  label: 'Courses',     icon: BookOpen },
-  { href: '/teacher/schedule',  label: 'My Schedule', icon: CalendarDays },
+  { href: '/teacher/subjects',  label: 'Courses',           icon: BookOpen },
+  { href: '/teacher/grades',    label: 'Grade Finalization', icon: ClipboardCheck },
+  { href: '/teacher/schedule',  label: 'My Schedule',       icon: CalendarDays },
   { href: '/teacher/calendar',  label: 'Calendar',    icon: CalendarDays },
   { href: '/teacher/team',      label: 'Team Hub',    icon: Users },
 ]

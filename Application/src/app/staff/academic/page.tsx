@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { Plus, Edit2, Save, X } from 'lucide-react'
+import { Plus, Edit2, Save, X, ChevronDown, ChevronRight, ListChecks } from 'lucide-react'
 import { Card, SectionTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
@@ -16,7 +16,19 @@ function inferYearLevel(code: string): number {
   return Math.min(Math.floor(parseInt(m[0]) / 100), 5)
 }
 
-type SubjectRow = Subject & { lectureUnits?: number; totalHours?: number }
+type SubjectEligibility = {
+  prereqIds:              string[]
+  minUnitsCompleted:      number | null
+  yearLevelReq:           number | null
+  minGrade:               number | null
+  programRestrictionIds:  string[]
+}
+
+type SubjectRow = Subject & {
+  lectureUnits?: number
+  totalHours?:   number
+  eligibility?:  SubjectEligibility
+}
 
 export default function AcademicSubjectsPage() {
   const [subjects,  setSubjects]  = useState<SubjectRow[]>(
@@ -29,6 +41,10 @@ export default function AcademicSubjectsPage() {
   const [newForm, setNewForm] = useState({
     code: '', name: '', programId: '', lectureUnits: '3', labUnits: '0', totalHours: '54', type: 'LECTURE', yearLevel: '1',
   })
+
+  const emptyElig = (): SubjectEligibility => ({ prereqIds: [], minUnitsCompleted: null, yearLevelReq: null, minGrade: null, programRestrictionIds: [] })
+  const [eligOpen, setEligOpen] = useState(false)
+  const [eligForm, setEligForm] = useState<SubjectEligibility>(emptyElig())
 
   // Group by inferred year level
   const grouped: Record<number, SubjectRow[]> = {}
@@ -76,6 +92,7 @@ export default function AcademicSubjectsPage() {
     const lec = parseInt(newForm.lectureUnits) || 0
     const lab = parseInt(newForm.labUnits)     || 0
     const prog = MOCK_PROGRAMS.find((p) => p.id === newForm.programId)
+    const hasElig = eligForm.prereqIds.length > 0 || eligForm.minUnitsCompleted !== null || eligForm.yearLevelReq !== null || eligForm.minGrade !== null || eligForm.programRestrictionIds.length > 0
     const created: SubjectRow = {
       id:           `sub_${Date.now()}`,
       code:         newForm.code,
@@ -88,9 +105,12 @@ export default function AcademicSubjectsPage() {
       totalHours:   parseInt(newForm.totalHours) || (lec + lab) * 18,
       type:         newForm.type as Subject['type'],
       schoolId:     'school_1',
+      eligibility:  hasElig ? { ...eligForm } : undefined,
     }
     setSubjects((p) => [...p, created])
     setNewForm({ code: '', name: '', programId: '', lectureUnits: '3', labUnits: '0', totalHours: '54', type: 'LECTURE', yearLevel: '1' })
+    setEligForm(emptyElig())
+    setEligOpen(false)
     setAddModal(false)
   }
 
@@ -288,6 +308,162 @@ export default function AcademicSubjectsPage() {
               {((parseInt(newForm.lectureUnits) || 0) + (parseInt(newForm.labUnits) || 0)) * 18} hrs/semester
             </p>
             <p className="text-xs text-brand-400 mt-0.5">Based on 18 weeks × units per week</p>
+          </div>
+
+          {/* ── Eligibility Conditions (collapsible, default closed) ─────── */}
+          <div className="sm:col-span-2 rounded-xl border border-[#e4ebf5] overflow-hidden">
+            {/* Toggle header */}
+            <button
+              type="button"
+              onClick={() => setEligOpen((v) => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+            >
+              <div className="flex items-center gap-2">
+                <ListChecks className="h-4 w-4 text-slate-400 shrink-0" />
+                <span className="text-sm font-semibold text-slate-700">Eligibility Conditions</span>
+                <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-500 uppercase tracking-wide">Optional</span>
+                {(eligForm.prereqIds.length > 0 || eligForm.minUnitsCompleted !== null || eligForm.yearLevelReq !== null || eligForm.minGrade !== null || eligForm.programRestrictionIds.length > 0) && (
+                  <span className="rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-bold text-brand-600 uppercase tracking-wide">Configured</span>
+                )}
+              </div>
+              {eligOpen
+                ? <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
+                : <ChevronRight className="h-4 w-4 text-slate-400 shrink-0" />
+              }
+            </button>
+
+            {/* Collapsible body */}
+            {eligOpen && (
+              <div className="px-4 py-4 space-y-4 border-t border-[#e4ebf5]">
+                <p className="text-xs text-slate-400 -mt-1">
+                  Set conditions for when students are allowed to take this subject. All fields are optional — leave blank to apply no restrictions.
+                </p>
+
+                {/* A. Prerequisite Subjects */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-700 tracking-wide">Prerequisite Subjects</label>
+                  {subjects.filter((s) => s.id !== undefined).length === 0 ? (
+                    <p className="rounded-lg border border-[#dce8f7] bg-slate-50 px-3 py-2 text-xs text-slate-400 italic">
+                      No subjects in the master list yet. Add more subjects first.
+                    </p>
+                  ) : (
+                    <div className="rounded-lg border border-[#dce8f7] bg-white max-h-36 overflow-y-auto divide-y divide-slate-50">
+                      {subjects.map((s) => (
+                        <label key={s.id} className="flex items-center gap-2.5 px-3 py-2 hover:bg-slate-50 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={eligForm.prereqIds.includes(s.id)}
+                            onChange={(e) => {
+                              setEligForm((p) => ({
+                                ...p,
+                                prereqIds: e.target.checked
+                                  ? [...p.prereqIds, s.id]
+                                  : p.prereqIds.filter((id) => id !== s.id),
+                              }))
+                            }}
+                            className="h-3.5 w-3.5 rounded border-slate-300 text-brand-500 accent-brand-500"
+                          />
+                          <code className="text-xs font-mono text-brand-700 bg-brand-50 px-1.5 py-0.5 rounded">{s.code}</code>
+                          <span className="text-xs text-slate-600 truncate">{s.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  {eligForm.prereqIds.length > 0 && (
+                    <p className="text-[10px] text-brand-500">{eligForm.prereqIds.length} prerequisite{eligForm.prereqIds.length !== 1 ? 's' : ''} selected</p>
+                  )}
+                </div>
+
+                {/* B + C + D in 3-col grid */}
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  {/* B. Minimum Units Completed */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-700 tracking-wide">Min. Units Completed</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={200}
+                      placeholder="e.g. 30"
+                      value={eligForm.minUnitsCompleted ?? ''}
+                      onChange={(e) => setEligForm((p) => ({ ...p, minUnitsCompleted: e.target.value ? parseInt(e.target.value) : null }))}
+                      className="w-full rounded-lg border border-[#dce8f7] bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/15 transition-colors"
+                    />
+                    <p className="text-[10px] text-slate-400">Total units before enrollment</p>
+                  </div>
+
+                  {/* C. Year Level Requirement */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-700 tracking-wide">Year Level Requirement</label>
+                    <select
+                      value={eligForm.yearLevelReq ?? ''}
+                      onChange={(e) => setEligForm((p) => ({ ...p, yearLevelReq: e.target.value ? parseInt(e.target.value) : null }))}
+                      className="w-full rounded-lg border border-[#dce8f7] bg-white px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/15 transition-colors"
+                    >
+                      <option value="">Any year level</option>
+                      <option value="1">1st Year and above</option>
+                      <option value="2">2nd Year and above</option>
+                      <option value="3">3rd Year and above</option>
+                      <option value="4">4th Year only</option>
+                    </select>
+                    <p className="text-[10px] text-slate-400">Minimum year standing</p>
+                  </div>
+
+                  {/* D. Minimum Grade */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-700 tracking-wide">Minimum Grade (Prerequisites)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      placeholder="e.g. 75"
+                      value={eligForm.minGrade ?? ''}
+                      onChange={(e) => setEligForm((p) => ({ ...p, minGrade: e.target.value ? parseInt(e.target.value) : null }))}
+                      className="w-full rounded-lg border border-[#dce8f7] bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/15 transition-colors"
+                    />
+                    <p className="text-[10px] text-slate-400">Min. grade in each prerequisite</p>
+                  </div>
+                </div>
+
+                {/* E. Program Restriction */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-700 tracking-wide">Program Restriction</label>
+                  {MOCK_PROGRAMS.length === 0 ? (
+                    <p className="rounded-lg border border-[#dce8f7] bg-slate-50 px-3 py-2 text-xs text-slate-400 italic">
+                      No programs added yet. Add programs under Dean → Programs first.
+                    </p>
+                  ) : (
+                    <div className="rounded-lg border border-[#dce8f7] bg-white max-h-36 overflow-y-auto divide-y divide-slate-50">
+                      {MOCK_PROGRAMS.map((prog) => (
+                        <label key={prog.id} className="flex items-center gap-2.5 px-3 py-2 hover:bg-slate-50 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={eligForm.programRestrictionIds.includes(prog.id)}
+                            onChange={(e) => {
+                              setEligForm((p) => ({
+                                ...p,
+                                programRestrictionIds: e.target.checked
+                                  ? [...p.programRestrictionIds, prog.id]
+                                  : p.programRestrictionIds.filter((id) => id !== prog.id),
+                              }))
+                            }}
+                            className="h-3.5 w-3.5 rounded border-slate-300 accent-brand-500"
+                          />
+                          <code className="text-xs font-mono text-brand-700 bg-brand-50 px-1.5 py-0.5 rounded">{prog.code}</code>
+                          <span className="text-xs text-slate-600 truncate">{prog.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  {eligForm.programRestrictionIds.length > 0 ? (
+                    <p className="text-[10px] text-brand-500">
+                      {eligForm.programRestrictionIds.length} program{eligForm.programRestrictionIds.length !== 1 ? 's' : ''} selected — subject intended for these programs only
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-slate-400">Limit this subject to specific programs (optional) — leave empty to allow all programs</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </Modal>

@@ -27,6 +27,9 @@ const PAGE_TITLES: Record<string, string> = {
   '/staff/team':                     'Team Hub',
   '/staff/calendar':                 'School Year Calendar',
   '/staff/audit':                    'Audit Logs',
+  '/staff/treasury/budget':         'Budget Management',
+  '/staff/dean/budget':             'Department Budget',
+  '/staff/users':                    'User Management',
   '/staff/profile':                  'My Profile',
   '/staff/personalization':          'Personalization',
   '/staff/settings':                 'Settings',
@@ -86,6 +89,7 @@ export function Header() {
   const [showNotifs,  setShowNotifs]  = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [photoUrl,    setPhotoUrl]    = useState<string>('')
+  const [notifs,      setNotifs]      = useState(() => MOCK_NOTIFICATIONS.map(n => ({ ...n })))
 
   const searchRef  = useRef<HTMLDivElement>(null)
   const notifRef   = useRef<HTMLDivElement>(null)
@@ -99,7 +103,19 @@ export function Header() {
 
   const today      = new Date().toISOString().slice(0, 10)
   const dueFuToday = CRM_FOLLOWUPS.filter((f) => !f.done && f.dueDate === today)
-  const unread     = MOCK_NOTIFICATIONS.filter((n) => !n.isRead).length + dueFuToday.length
+  const unread     = notifs.filter((n) => !n.isRead).length + dueFuToday.length
+
+  function markOneRead(id: string) {
+    // Mutate the shared array so student page stays in sync
+    const orig = MOCK_NOTIFICATIONS.find(x => x.id === id)
+    if (orig) orig.isRead = true
+    setNotifs(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n))
+  }
+
+  function markAllRead() {
+    MOCK_NOTIFICATIONS.forEach(n => { n.isRead = true })
+    setNotifs(prev => prev.map(n => ({ ...n, isRead: true })))
+  }
 
   const title = Object.entries(PAGE_TITLES).find(([k]) => pathname === k || pathname.startsWith(k + '/'))?.[1] ?? ''
 
@@ -177,7 +193,17 @@ export function Header() {
           <div className="absolute right-0 top-full mt-2 w-80 rounded-xl border border-slate-100 bg-white shadow-card-lg z-50 overflow-hidden animate-slide-up">
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
               <p className="text-sm font-semibold text-slate-900">Notifications</p>
-              {unread > 0 && <span className="rounded-full bg-brand-50 px-2 py-0.5 text-2xs font-semibold text-brand-600">{unread} new</span>}
+              <div className="flex items-center gap-2">
+                {unread > 0 && <span className="rounded-full bg-brand-50 px-2 py-0.5 text-2xs font-semibold text-brand-600">{unread} new</span>}
+                {unread > 0 && (
+                  <button
+                    onClick={markAllRead}
+                    className="text-2xs text-slate-500 hover:text-brand-600 font-medium transition-colors"
+                  >
+                    Mark all read
+                  </button>
+                )}
+              </div>
             </div>
             <div className="divide-y divide-slate-50 max-h-80 overflow-y-auto">
               {dueFuToday.length > 0 && (
@@ -191,19 +217,33 @@ export function Header() {
                   </div>
                 </a>
               )}
-              {MOCK_NOTIFICATIONS.slice(0, 5).map((n) => (
-                <div key={n.id} className={`flex gap-3 px-4 py-3 ${!n.isRead ? 'bg-brand-50/30' : ''}`}>
-                  <div className={`mt-0.5 h-2 w-2 rounded-full shrink-0 ${!n.isRead ? 'bg-brand-500' : 'bg-transparent'}`} />
-                  <div>
-                    <p className="text-xs font-semibold text-slate-900">{n.title}</p>
+              {notifs.slice(0, 5).map((n) => (
+                <button
+                  key={n.id}
+                  onClick={() => { markOneRead(n.id); if (n.link) router.push(n.link) }}
+                  className={`w-full text-left flex gap-3 px-4 py-3 transition-colors hover:bg-slate-50 ${!n.isRead ? 'bg-brand-50/30' : ''}`}
+                >
+                  <div className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${!n.isRead ? 'bg-brand-500' : 'bg-transparent'}`} />
+                  <div className="min-w-0">
+                    <p className={`text-xs font-semibold ${!n.isRead ? 'text-slate-900' : 'text-slate-600'}`}>{n.title}</p>
                     <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{n.message}</p>
                   </div>
-                </div>
+                </button>
               ))}
               {dueFuToday.length === 0 && MOCK_NOTIFICATIONS.length === 0 && (
                 <div className="px-4 py-8 text-center text-xs text-slate-400">No notifications</div>
               )}
             </div>
+            {notifs.length > 5 && (
+              <div className="border-t border-slate-100 px-4 py-2.5 text-center">
+                <button
+                  onClick={() => { setShowNotifs(false); router.push('/student/notifications') }}
+                  className="text-xs text-brand-600 hover:text-brand-700 font-medium"
+                >
+                  View all {notifs.length} notifications
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

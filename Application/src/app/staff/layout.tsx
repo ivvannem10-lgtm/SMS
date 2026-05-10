@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { StaffSidebar } from '@/components/layout/StaffSidebar'
 import { Header } from '@/components/layout/Header'
 
-const STAFF_ROLES = ['SUPER_ADMIN', 'ADMISSION_OFFICER', 'REGISTRAR', 'TREASURER', 'ACADEMIC_ADMIN', 'DEAN']
+const STAFF_ROLES = ['SUPER_ADMIN', 'ADMISSION_OFFICER', 'REGISTRAR', 'TREASURER', 'ACADEMIC_ADMIN', 'ACCOUNTING', 'DEAN', 'HR_STAFF']
 
 export default async function StaffLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions)
