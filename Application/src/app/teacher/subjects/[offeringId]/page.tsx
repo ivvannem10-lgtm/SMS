@@ -75,18 +75,6 @@ export default function TeacherSubjectPage({ params }: { params: { offeringId: s
         ))}
       </div>
 
-      {/* Quick stats */}
-      <div className="grid grid-cols-3 gap-4">
-        {[{ label: 'Modules Published', value: MOCK_MODULES.filter((m) => m.offeringId === offeringId && m.isPublished).length, total: moduleCount },
-          { label: 'Assignments Active', value: MOCK_ASSIGNMENTS.filter((a) => a.offeringId === offeringId && a.isPublished).length, total: assignmentCount },
-          { label: 'Quizzes Published', value: MOCK_QUIZZES.filter((q) => q.offeringId === offeringId && q.isPublished).length, total: quizCount },
-          { label: 'Performance Tasks', value: MOCK_PERFORMANCE_TASKS.filter((p) => p.offeringId === offeringId && p.isPublished).length, total: ptCount }].map((stat) => (
-          <Card key={stat.label}>
-            <p className="text-xs text-slate-500">{stat.label}</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">{stat.value}<span className="text-sm font-normal text-slate-400">/{stat.total}</span></p>
-          </Card>
-        ))}
-      </div>
     </div>
   )
 }

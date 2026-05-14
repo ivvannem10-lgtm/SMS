@@ -6,8 +6,10 @@ import { useSession } from 'next-auth/react'
 import {
   UserCheck, BookMarked, Banknote, Users, GraduationCap,
   TrendingUp, TrendingDown, Minus, ArrowRight, Clock,
-  BookOpen, UserPlus, UserX, LayoutGrid,
+  BookOpen, UserPlus, UserX, LayoutGrid, RefreshCw, CheckCircle2,
+  FileText, ClipboardList, BarChart2, CalendarDays,
 } from 'lucide-react'
+import { syncAll } from '@/lib/sync'
 import { Card, SectionTitle } from '@/components/ui/Card'
 import { ApplicantBadge } from '@/components/ui/Badge'
 import { Avatar } from '@/components/ui/Avatar'
@@ -126,7 +128,19 @@ export default function StaffDashboardPage() {
   const isRegistrar     = role === 'REGISTRAR'
   const isAcademicAdmin = role === 'ACADEMIC_ADMIN' || role === 'SUPER_ADMIN'
   const isAdmission     = role === 'ADMISSION_OFFICER'
+  const isSuperAdmin    = role === 'SUPER_ADMIN'
   const visibleActions  = QUICK_ACTIONS.filter((a) => !a.hideFor.includes(role))
+  const [syncing,  setSyncing]  = useState(false)
+  const [synced,   setSynced]   = useState(false)
+
+  async function handleSyncAll() {
+    setSyncing(true)
+    await new Promise((r) => setTimeout(r, 800))
+    syncAll()
+    setSyncing(false)
+    setSynced(true)
+    setTimeout(() => setSynced(false), 3000)
+  }
 
   // ── Compute live stats ───────────────────────────────────────────────────
   const sem      = MOCK_SEMESTERS.find((s) => s.isActive)
@@ -345,6 +359,20 @@ export default function StaffDashboardPage() {
             ? 'School-wide student records — all departments, current term'
             : 'System-wide overview — current term statistics'
         }
+        actions={isSuperAdmin ? (
+          <button
+            onClick={handleSyncAll}
+            disabled={syncing}
+            className="flex items-center gap-1.5 rounded-lg border border-[#dce8f7] bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-brand-50 hover:border-brand-300 hover:text-brand-700 disabled:opacity-50 transition-all"
+          >
+            {synced
+              ? <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Synced</>
+              : syncing
+                ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" /> Syncing…</>
+                : <><RefreshCw className="h-3.5 w-3.5" /> Sync All Records</>
+            }
+          </button>
+        ) : undefined}
       >
         {isRegistrar ? 'Registrar Dashboard' : 'Dashboard'}
       </SectionTitle>
@@ -440,44 +468,6 @@ export default function StaffDashboardPage() {
           </div>
         )}
 
-        {/* Activity log — hidden for admissions, shown for others */}
-        {!isAdmission && (
-          <div className="animate-slide-up" style={{ animationDelay: '360ms' }}>
-          <Card padding="none">
-            <div className="px-5 py-4 border-b border-slate-100">
-              <h3 className="text-sm font-semibold text-slate-900">Recent Activity</h3>
-              {isRegistrar && (
-                <p className="text-xs text-slate-400 mt-0.5">Student &amp; enrollment actions</p>
-              )}
-            </div>
-            {activityLogs.length === 0 ? (
-              <div className="px-5 py-8 text-center text-xs text-slate-400">No recent activity</div>
-            ) : (
-              <div className="divide-y divide-slate-50">
-                {activityLogs.slice(0, 6).map((log) => (
-                  <Link
-                    key={log.id}
-                    href={getActivityHref(log)}
-                    className="flex items-start gap-2.5 px-5 py-3 hover:bg-slate-50 transition-colors"
-                  >
-                    <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
-                      log.action === 'UPDATE' ? 'bg-amber-50' : log.action === 'CREATE' ? 'bg-emerald-50' : 'bg-slate-100'
-                    }`}>
-                      <Clock className={`h-3 w-3 ${
-                        log.action === 'UPDATE' ? 'text-amber-500' : log.action === 'CREATE' ? 'text-emerald-500' : 'text-slate-500'
-                      }`} />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs text-slate-700 leading-relaxed">{log.details}</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">{formatDateTime(log.createdAt)}</p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </Card>
-          </div>
-        )}
       </div>
     </div>
   )

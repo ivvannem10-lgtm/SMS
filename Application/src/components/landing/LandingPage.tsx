@@ -285,6 +285,7 @@ export function LandingPage() {
             © {new Date().getFullYear()} School Eco. All rights reserved.
           </p>
           <div className="flex items-center gap-4 text-xs text-slate-400">
+            <Link href="/terms" className="hover:text-brand-600 transition-colors">Terms of Service</Link>
             <Link href="/login" className="hover:text-brand-600 transition-colors">Staff Login</Link>
             <Link href="/apply" className="hover:text-brand-600 transition-colors">Apply Online</Link>
           </div>

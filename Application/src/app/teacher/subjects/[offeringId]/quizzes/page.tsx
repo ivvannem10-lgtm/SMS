@@ -8,6 +8,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Input, Select, Textarea } from '@/components/ui/Input'
 import { MOCK_QUIZZES } from '@/lib/mock-data'
 import { Quiz, AssessmentType } from '@/types'
+import { useConfirm } from '@/components/shared/ConfirmDialog'
 
 const ASSESSMENT_TYPES: { value: AssessmentType; label: string }[] = [
   { value: 'QUIZ',            label: 'Quiz' },
@@ -43,6 +44,8 @@ function fmtDate(iso?: string) {
 export default function TeacherQuizzesPage({ params }: { params: { offeringId: string } }) {
   const { offeringId } = params
   const quizzes = MOCK_QUIZZES.filter(q => q.offeringId === offeringId)
+
+  const confirm = useConfirm()
 
   const [open, setOpen]           = useState(false)
   const [saving, setSaving]       = useState(false)
@@ -97,8 +100,15 @@ export default function TeacherQuizzesPage({ params }: { params: { offeringId: s
 
   const AUTO_GRADED = new Set(['MCQ', 'TRUE_FALSE', 'IDENTIFICATION', 'FILL_IN_BLANK', 'ENUMERATION', 'MATCHING'])
 
-  function validateAndPublish(quiz: Quiz) {
+  async function validateAndPublish(quiz: Quiz) {
     if (quiz.isPublished) {
+      const ok = await confirm({
+        title: 'Unpublish Assessment?',
+        message: 'Students will lose access to this assessment.',
+        variant: 'warning',
+        confirmLabel: 'Unpublish',
+      })
+      if (!ok) return
       quiz.isPublished = false
       quiz.visibility  = 'DRAFT'
       return

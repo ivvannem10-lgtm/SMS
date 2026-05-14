@@ -3,7 +3,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
-import { LayoutDashboard, BookOpen, Receipt, User, Bell, ClipboardList, LogOut, GraduationCap, BarChart2 } from 'lucide-react'
+import { LayoutDashboard, BookOpen, Receipt, User, Bell, ClipboardList, LogOut, GraduationCap, BarChart2, Inbox, LifeBuoy, ClipboardCheck } from 'lucide-react'
 import { cn, initials } from '@/lib/utils'
 
 const NAV = [
@@ -12,6 +12,9 @@ const NAV = [
   { href: '/student/subjects',      label: 'My Subjects',          icon: BookOpen },
   { href: '/student/grades',        label: 'My Grades',            icon: BarChart2 },
   { href: '/student/soa',           label: 'Statement of Account', icon: Receipt },
+  { href: '/student/forms',         label: 'Forms',                icon: ClipboardCheck },
+  { href: '/student/requests',      label: 'Request Center',       icon: Inbox },
+  { href: '/student/support',       label: 'Support Center',       icon: LifeBuoy },
   { href: '/student/notifications', label: 'Notifications',        icon: Bell },
   { href: '/student/profile',       label: 'My Profile',           icon: User },
 ]

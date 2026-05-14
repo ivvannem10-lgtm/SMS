@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Eye, EyeOff, CheckCircle2, AlertCircle, Bell, Mail, Shield, Lock } from 'lucide-react'
+import Link from 'next/link'
+import { Eye, EyeOff, CheckCircle2, AlertCircle, Bell, Mail, Shield, Lock, FileText, ExternalLink, ChevronRight } from 'lucide-react'
 import { SectionTitle, Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -194,6 +195,52 @@ export default function SettingsPage() {
               </tr>
             </tbody>
           </table>
+        </div>
+      </Card>
+
+      {/* Terms & Legal */}
+      <Card>
+        <div className="flex items-center gap-3 mb-5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50">
+            <FileText className="h-4.5 w-4.5 text-brand-600" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-800">Terms & Legal</h3>
+            <p className="text-xs text-slate-400">Review the policies governing your use of this system.</p>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-[#e4ebf5] overflow-hidden divide-y divide-[#f0f4fa]">
+          <Link href="/terms" target="_blank" rel="noopener noreferrer"
+            className="flex items-center justify-between px-4 py-3.5 hover:bg-brand-50/50 transition-colors group">
+            <div>
+              <p className="text-sm font-semibold text-slate-800">Terms of Service</p>
+              <p className="text-xs text-slate-400 mt-0.5">Legal Master Policy Framework — Version 1.0, Effective May 10, 2026</p>
+            </div>
+            <ExternalLink className="h-4 w-4 text-slate-400 group-hover:text-brand-500 transition-colors shrink-0" />
+          </Link>
+          <div className="px-4 py-3.5 bg-[#f8fafd]">
+            <p className="text-xs text-slate-500 leading-relaxed">
+              By continuing to use the SMS School Management System, you acknowledge that you have read, understood, and agree to be bound by the Terms of Service. All activity within this system is subject to audit logging in accordance with Section 9 of the Terms.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-3 gap-3">
+          {[
+            { label: 'Data Governance', desc: 'Section 03', href: '/terms#section-03' },
+            { label: 'Acceptable Use', desc: 'Section 06', href: '/terms#section-06' },
+            { label: 'Audit & Monitoring', desc: 'Section 09', href: '/terms#section-09' },
+          ].map((item) => (
+            <Link key={item.label} href={item.href} target="_blank" rel="noopener noreferrer"
+              className="flex items-center justify-between rounded-xl border border-[#e4ebf5] px-3.5 py-3 hover:bg-brand-50 hover:border-brand-200 transition-colors group">
+              <div>
+                <p className="text-xs font-semibold text-slate-700 group-hover:text-brand-700">{item.label}</p>
+                <p className="text-2xs text-slate-400">{item.desc}</p>
+              </div>
+              <ChevronRight className="h-3.5 w-3.5 text-slate-300 group-hover:text-brand-500 shrink-0" />
+            </Link>
+          ))}
         </div>
       </Card>
     </div>

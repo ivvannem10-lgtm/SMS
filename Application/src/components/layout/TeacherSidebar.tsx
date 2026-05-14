@@ -3,16 +3,19 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
-import { LayoutDashboard, BookOpen, LogOut, GraduationCap, CalendarDays, Users, ClipboardCheck } from 'lucide-react'
+import { LayoutDashboard, BookOpen, LogOut, GraduationCap, CalendarDays, Users, ClipboardCheck, Inbox, LifeBuoy, ClipboardList } from 'lucide-react'
 import { cn, initials } from '@/lib/utils'
 
 const NAV = [
-  { href: '/teacher/dashboard', label: 'Dashboard',   icon: LayoutDashboard },
-  { href: '/teacher/subjects',  label: 'Courses',           icon: BookOpen },
+  { href: '/teacher/dashboard', label: 'Dashboard',       icon: LayoutDashboard },
+  { href: '/teacher/subjects',  label: 'Courses',         icon: BookOpen },
   { href: '/teacher/grades',    label: 'Grade Finalization', icon: ClipboardCheck },
-  { href: '/teacher/schedule',  label: 'My Schedule',       icon: CalendarDays },
-  { href: '/teacher/calendar',  label: 'Calendar',    icon: CalendarDays },
-  { href: '/teacher/team',      label: 'Team Hub',    icon: Users },
+  { href: '/teacher/schedule',  label: 'My Schedule',     icon: CalendarDays },
+  { href: '/teacher/forms',     label: 'Forms',           icon: ClipboardList },
+  { href: '/teacher/requests',  label: 'Request Center',  icon: Inbox },
+  { href: '/teacher/support',   label: 'Support Center',  icon: LifeBuoy },
+  { href: '/teacher/calendar',  label: 'Calendar',        icon: CalendarDays },
+  { href: '/teacher/team',      label: 'Team Hub',        icon: Users },
 ]
 
 export function TeacherSidebar() {

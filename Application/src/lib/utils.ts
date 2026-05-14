@@ -126,6 +126,8 @@ export const ROLE_LABELS: Record<string, string> = {
   ACCOUNTING: 'Accounting',
   DEAN: 'Dean',
   HR_STAFF: 'HR Staff',
+  AMO: 'Asset Management',
+  PURCHASING_OFFICER: 'Purchasing Officer',
   TEACHER: 'Teacher',
   STUDENT: 'Student',
 }
@@ -150,9 +152,11 @@ export const ROLE_PORTALS: Record<string, string> = {
   REGISTRAR: '/staff/registrar',
   TREASURER: '/staff/treasury',
   ACADEMIC_ADMIN: '/staff/academic',
-  ACCOUNTING: '/staff/treasury/budget',
+  ACCOUNTING: '/staff/accounting',
   DEAN: '/staff/dean',
   HR_STAFF: '/staff/hr',
+  AMO: '/staff/ams',
+  PURCHASING_OFFICER: '/staff/purchasing',
   TEACHER: '/teacher/dashboard',
   STUDENT: '/student/dashboard',
 }

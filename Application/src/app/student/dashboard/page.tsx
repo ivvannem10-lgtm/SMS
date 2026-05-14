@@ -62,12 +62,6 @@ export default function StudentDashboardPage() {
         <div className="animate-slide-up" style={{ animationDelay: '180ms' }}>
           <StatCard label="SOA Balance" value={formatCurrency(soa?.balance ?? 0)} sub={soa?.status} icon={Receipt} color={soa?.balance === 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'} />
         </div>
-        <div className="animate-slide-up" style={{ animationDelay: '250ms' }}>
-          <StatCard label="Student ID" value={student.studentId} icon={GraduationCap} color="bg-violet-50 text-violet-600" />
-        </div>
-        <div className="animate-slide-up" style={{ animationDelay: '320ms' }}>
-          <StatCard label="Notifications" value={unreadCount} sub="unread" icon={Bell} color="bg-amber-50 text-amber-600" />
-        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

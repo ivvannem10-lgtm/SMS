@@ -54,7 +54,7 @@ export function SectionTitle({
   className?: string
 }) {
   return (
-    <div className={cn('flex items-start justify-between gap-4 mb-6', className)}>
+    <div className={cn('sticky top-14 z-[30] -mx-6 -mt-6 mb-6 flex items-center justify-between gap-4 border-b border-slate-100 bg-[#f3f6fb]/95 backdrop-blur-sm px-6 py-4', className)}>
       <div className="relative pl-3.5">
         {/* Navy left accent bar */}
         <span className="absolute left-0 top-0.5 bottom-0.5 w-[3px] rounded-full bg-brand-500" />
@@ -64,7 +64,7 @@ export function SectionTitle({
         )}
       </div>
       {actions && (
-        <div className="flex items-center gap-2 shrink-0 mt-0.5">{actions}</div>
+        <div className="flex items-center gap-2 shrink-0">{actions}</div>
       )}
     </div>
   )

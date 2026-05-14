@@ -43,7 +43,7 @@ Each station feeds into the next. `ProcessFlow` in `src/components/shared/Proces
 | `(root)` | `/` | Anyone — shows `LandingPage` if unauthenticated, redirects to portal if authenticated |
 | `(public)` | `/apply` | Anyone |
 | `(auth)` | `/login` | Anyone |
-| `staff/` | `/staff/*` | SUPER_ADMIN, ADMISSION_OFFICER, REGISTRAR, TREASURER, ACADEMIC_ADMIN, ACCOUNTING, DEAN, HR_STAFF |
+| `staff/` | `/staff/*` | SUPER_ADMIN, ADMISSION_OFFICER, REGISTRAR, TREASURER, ACADEMIC_ADMIN, ACCOUNTING, DEAN, HR_STAFF, AMO |
 | `teacher/` | `/teacher/*` | TEACHER |
 | `student/` | `/student/*` | STUDENT |
 
@@ -98,8 +98,11 @@ Every Prisma model has a `schoolId` foreign key. All API routes must scope queri
 - **Edit student records**: REGISTRAR + SUPER_ADMIN only (`canEdit` check)
 - **Registrar** sees all departments — no department filter on student data
 - **Dean** is scoped to their `deanDepartment` college; sidebar shows Dean-only nav (`DEAN_NAV`)
-- **Accounting** sees Budget Mgmt only — not Cashier / Student Accounts / Transaction Logs (those belong to TREASURER)
+- **Accounting** (`ACCOUNTING` role) portal: `/staff/accounting` — sees Accounting Dashboard, Cashflow, Expenses, Reports, and Budget Mgmt. Does NOT see Cashier/Student Accounts/Transaction Logs (TREASURER only).
+- **Treasurer** (`TREASURER` role) portal: `/staff/treasury` — sees Cashier, Student Accounts, Transaction Logs, Collections, Official Receipts. Does NOT see Accounting/Purchasing sections.
+- **Purchasing Officer** (`PURCHASING_OFFICER` role) portal: `/staff/purchasing` — sees only the Purchasing nav group (Dashboard, Purchase Requests, Purchase Orders, Vendors).
 - **HR_STAFF** sees only the Human Resources nav group (`/staff/hr/*`) — no access to admissions, registrar, treasury, or academic sections
+- **AMO** sees only the Asset Management nav group (`/staff/ams/*`) — no access to other staff sections
 - **Teacher schedule**: only visible for PUBLISHED offerings where the teacher is assigned
 
 ### Student status colors
@@ -175,7 +178,7 @@ All three sidebars (Staff, Teacher, Student) use a local `signOutOpen` state to 
 
 | File | Purpose |
 |---|---|
-| `src/types/index.ts` | All TypeScript interfaces — quiz types (`AssessmentType`, `QuizQuestionType`, `AttemptGradingMethod`, `TimerBehavior`, `NavigationMode`, `QuestionDisplayMode`, `FeedbackTiming`, `FeedbackLevel`, `QuizSecuritySettings`, `ConditionalRelease`), rubric types (`Rubric`, `RubricCriterion`, `RubricLevel`, `CriterionScore`, `PTSubmission`, `PerformanceTask`), grade types (`GradeCriteria` with `customCategories?`, `disabledDefaults?`; `CustomGradeCategory`), extended `Quiz` (20+ optional customization fields), HRIS types (`JobPosting`, `JobApplication`, `HREmployee`, `HRDocument`, `OnboardingTask`, `HROnboardingRecord`, `HRLeaveRequest` + 9 enum types) |
+| `src/types/index.ts` | All TypeScript interfaces — quiz types (`AssessmentType`, `QuizQuestionType`, `AttemptGradingMethod`, `TimerBehavior`, `NavigationMode`, `QuestionDisplayMode`, `FeedbackTiming`, `FeedbackLevel`, `QuizSecuritySettings`, `ConditionalRelease`), rubric types (`Rubric`, `RubricCriterion`, `RubricLevel`, `CriterionScore`, `PTSubmission`, `PerformanceTask`), grade types (`GradeCriteria` with `customCategories?`, `disabledDefaults?`; `CustomGradeCategory`), extended `Quiz` (20+ optional customization fields), HRIS types (`JobPosting`, `JobApplication`, `HREmployee`, `HRDocument`, `OnboardingTask`, `HROnboardingRecord`, `HRLeaveRequest` + 9 enum types), AMS types (`Asset`, `AssetDeployment`, `AssetHistory`, `Consumable`, `ConsumableTransaction`, `MaintenanceLog`, `AssetTagFormat`, `AssetInclusion`, `TagFormatComponent` + 9 enum types) |
 | `src/lib/utils.ts` | `cn()`, `fullName()`, `initials()`, grade helpers, `ROLE_PORTALS`, `FACULTY_DEPT_TO_COLLEGE` |
 | `src/lib/auth.ts` | NextAuth options, `DEMO_USERS` (plain-text pw), `deanDepartment` in JWT |
 | `src/lib/mock-data.ts` | All in-memory data — applicants, students, offerings, rooms, faculty, `MOCK_ROOM_AVAILABILITY`, `MOCK_STAFF_MEMBERS` (Team Hub), `MOCK_GRADE_CRITERIA` |
@@ -185,6 +188,9 @@ All three sidebars (Staff, Teacher, Student) use a local `signOutOpen` state to 
 | `src/components/layout/StaffSidebar.tsx` | Role-aware staff nav; Dean shows `DEAN_NAV` only |
 | `src/components/layout/TeacherSidebar.tsx` | Teacher nav: Dashboard, Courses, My Schedule, Calendar, Team Hub |
 | `src/components/landing/LandingPage.tsx` | Public landing page for unauthenticated visitors — rendered by `src/app/page.tsx` |
+| `src/app/(public)/terms/page.tsx` | Terms of Service — public, no auth. 13-section Legal Master Policy with sticky TOC, section cards, acceptance footer |
+| `src/lib/import-templates.ts` | Excel/CSV import system — 5 template definitions, `downloadCSV()`, `parseImportCSV()` |
+| `src/components/shared/ImportModal.tsx` | Reusable 3-step import modal — Download Template → Upload CSV → Review & Import |
 | `src/app/staff/registrar/[studentId]/page.tsx` | Full student edit: 4 tabs, photo upload, verified tags, addable family/education |
 | `src/app/staff/dean/page.tsx` | Dean dashboard with animated cards, Recharts chart, year-level accordion |
 | `src/app/staff/dean/students/page.tsx` | Dean read-only student list with year/status/enrollment filters; `?year=N` pre-filters via `useSearchParams` |
@@ -211,6 +217,14 @@ All three sidebars (Staff, Teacher, Student) use a local `signOutOpen` state to 
 | `src/app/student/subjects/[offeringId]/quizzes/[quizId]/page.tsx` | Quiz taking: timer, one-way nav, tab detection, auto-grade + gradebook push, confirmation modal |
 | `src/app/student/subjects/[offeringId]/assignments/page.tsx` | Student assignment submission + grade/feedback view |
 | `src/app/student/subjects/[offeringId]/performance-tasks/page.tsx` | PT view: rubric expand, submit modal, grade breakdown with weighted criterion scores |
+| `src/app/staff/ams/page.tsx` | AMS Dashboard — stat cards, quick actions, activity feed, low stock + warranty alerts |
+| `src/app/staff/ams/assets/page.tsx` | Asset Registry — table, filters, quick status-change popover |
+| `src/app/staff/ams/assets/new/page.tsx` | Register Asset — 4-step mobile-friendly form, camera, auto tag gen, inclusions |
+| `src/app/staff/ams/assets/[id]/page.tsx` | Asset Detail — 4 tabs: Info, Deployments (return modal), History timeline, Maintenance |
+| `src/app/staff/ams/borrow/page.tsx` | Borrow & Deploy — deployment table, new request modal, return workflow |
+| `src/app/staff/ams/consumables/page.tsx` | Consumables — inventory cards with stock bars, issue/restock, transaction log |
+| `src/app/staff/ams/maintenance/page.tsx` | Maintenance Logs — log/complete/cancel, detail slide-over, asset status sync |
+| `src/app/staff/ams/tag-builder/page.tsx` | Tag Builder — visual format builder, live preview, saved formats, set default |
 | `src/app/staff/hr/page.tsx` | HR Dashboard — stat cards, quick actions, ATS pipeline summary |
 | `src/app/staff/hr/jobs/page.tsx` | Job Postings — CRUD, filter tabs, create/edit modal |
 | `src/app/staff/hr/recruitment/page.tsx` | ATS Kanban pipeline — 7 stages, slide-over detail, `useSearchParams` |
@@ -238,12 +252,14 @@ All three sidebars (Staff, Teacher, Student) use a local `signOutOpen` state to 
 | Registrar | registrar@school.edu |
 | Treasurer | treasury@school.edu |
 | Accounting | accounting@school.edu |
+| Purchasing Officer | purchasing@school.edu |
 | Academic Admin | academic@school.edu |
 | Dean — Computing | dean.computing@school.edu |
 | Dean — Business | dean.business@school.edu |
 | Dean — Nursing | dean.nursing@school.edu |
 | Dean — Arts | dean.arts@school.edu |
 | HR Staff | hr@school.edu |
+| Asset Management (AMO) | amo@school.edu |
 | Teacher | prof.santos@school.edu |
 | Student | student@school.edu |
 
@@ -309,7 +325,7 @@ All passwords: `password`. Public applicant form (no login): `/apply`.
   - `MappingEditor` — Upload DOCX, click to map text → field (DOCX mapping mode)
   - `PdfOverlayEditor` — Upload PDF, visually place fields on canvas, generate via pdf-lib
 
-  **PDF Overlay System (`isPdfOverlay: true`)**: `PdfOverlayEditor` renders the uploaded PDF's first page to an off-screen `<canvas>` using **pdfjs-dist** (dynamically imported; worker loaded from `/_next/static/chunks/`), then displays it as an `<img>` that fills the container exactly — no browser PDF-viewer chrome. The container uses CSS `aspect-ratio` derived from the actual PDF dimensions, **not** a hardcoded `paddingTop: '129.41%'` (critical: `paddingTop` percentages are relative to the *parent's* width, not the element's own width, which inflates `r.height` and corrupts stored % coordinates). Fields are stored as `PdfFieldOverlay[]` with x/y/width/height as percentages of the container; click coordinates use `getBoundingClientRect()` on the container ref. Tool modes: select, text, number, date, image, table. `generatePdfWithOverlays(pdfUrl, overlays, student)` dynamically imports `pdf-lib`, loads the PDF, and draws text/tables at positions converted from percentages to PDF points (PDF origin is bottom-left: `pdfY = height - (y/100)*height - fontSize`). Dynamic tables use `getLoopRows()` and draw cell-by-cell. Output is a Blob object URL shown in an `<iframe>` in GenerateTab with a Download button.
+  **PDF Overlay System (`isPdfOverlay: true`)**: `PdfOverlayEditor` renders the uploaded PDF's first page to an off-screen `<canvas>` using **pdfjs-dist** (worker at `/public/pdf.worker.min.mjs`, set via `GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'`), then displays it as an `<img>` that fills the container exactly — no browser PDF-viewer chrome. The container uses CSS `aspect-ratio` derived from the actual PDF dimensions, **not** a hardcoded `paddingTop: '129.41%'` (critical: `paddingTop` percentages are relative to the *parent's* width, not the element's own width, which inflates `r.height` and corrupts stored % coordinates). Fields are stored as `PdfFieldOverlay[]` with x/y/width/height as percentages of the container; click coordinates use `getBoundingClientRect()` on the container ref. Tool modes: select, text, number, date, image, table. `generatePdfWithOverlays(pdfUrl, overlays, student)` dynamically imports `pdf-lib`, loads the PDF, and draws fields at positions converted from percentages to PDF points (PDF origin is bottom-left: `pdfY = height - (y/100)*height - fontSize`). **Critical font order**: embed Helvetica/Times/Courier standard fonts FIRST, then call `pdfDoc.registerFontkit()` — reversing this order silently breaks all font embedding. Field type rendering: **text** → `getSimpleValue(fieldKey, student)`; **number/date** → `ov.staticValue` (user-entered); **image** → `ov.imageDataUrl` embedded via `embedPng`/`embedJpg`; **table** → draws a static grid of `ov.tableRows × ov.tableCols` cells using `drawLine` (no dynamic data — replaced the old subjects-loop table). Output is a Blob object URL. In GenerateTab, all pages are rendered to canvas images via pdfjs-dist (same worker setup as the editor preview) and displayed as scrollable `<img>` tags in a dark-themed panel — no browser PDF viewer chrome. A Download PDF button is always shown alongside the rendered images.
 
   **SmartDocs Builder (TemplateEditor)**: Fields display as friendly chips `[Full Name]` (not `{{full_name}}`). Right-side **Fields Panel** always visible with Personal/Academic sections, Auto-fill Tables, and Show/Hide Conditions. `FieldItem` component is draggable — `onDragStart` puts pill HTML in `dataTransfer`; `onEditorDrop` on the canvas div positions caret at drop point via `document.caretRangeFromPoint`. **Smart Table Builder modal** triggered from the panel: choose loop type (subjects/current/completed), select columns → `insertSmartTable()` builds the `<tr data-loop-type>` row with pill spans directly. Step indicator (Choose→Add Fields→Preview→Save) is visual-only.
 
@@ -325,7 +341,8 @@ All passwords: `password`. Public applicant form (no login): `/apply`.
 - Search input removed from the filter bar; status-tab filter remains.
 - `/apply` public form pushes to `MOCK_APPLICANTS` AND writes to `sessionStorage['sis_pending_applicants']` (JSON array). The admissions page rehydrates from `sessionStorage` on mount so submissions survive the full-page reload that happens during login. De-duplicates by `id`.
 - Admissions dashboard (`ADMISSION_OFFICER` role) shows a Quick Actions row: Add Applicant, Review Applicants, Admissions CRM.
-- **Dashboard stat scoping**: `ADMISSION_OFFICER` sees only 3 stats (Pending Applicants, Accepted, Enrolled Students). `REGISTRAR` sees the 4-card registrar view. Other staff see the full 5-card view. `ADMISSION_OFFICER` also has Quick Actions billing shortcuts hidden and Recent Activity panel hidden.
+- **Dashboard stat scoping**: `ADMISSION_OFFICER` sees only 3 stats (Pending Applicants, Accepted, Enrolled Students). `REGISTRAR` sees the 4-card registrar view. Other staff see the full 5-card view. `ADMISSION_OFFICER` also has Quick Actions billing shortcuts hidden. The Recent Activity panel has been removed from all dashboard views.
+- **TemplateEditor pipeline**: The settings/overview panel inside TemplateEditor previously showed 6 numbered step cards. Steps 3–6 (Data Field Mapping summary, Document Generation Options, Actions After Document Generation, Generate Document) have been removed — only Steps 1 (Data Source) and 2 (Template Design) remain visible.
 
 **Z-index hierarchy (important — do not break)**
 | Element | z-index |
@@ -359,11 +376,51 @@ If the UI renders as unstyled HTML (no CSS), a stale production `.next` build is
 | PT submissions + criterion scores | `task.submissions` mutated in-place inside `MOCK_PERFORMANCE_TASKS` | Hard reload |
 | Quiz settings customization | Fields mutated on `quiz` object in `MOCK_QUIZZES` (in-place) | Hard reload |
 | HRIS (employees, applications, leaves, onboarding) | `MOCK_HR_EMPLOYEES`, `MOCK_JOB_APPLICATIONS`, `MOCK_HR_LEAVES`, `MOCK_HR_ONBOARDING` in `mock-data.ts` | Hard reload |
+| AMS (assets, deployments, history, consumables, maintenance) | `MOCK_ASSETS`, `MOCK_ASSET_DEPLOYMENTS`, `MOCK_ASSET_HISTORY`, `MOCK_CONSUMABLES`, `MOCK_CONSUMABLE_TRANSACTIONS`, `MOCK_MAINTENANCE_LOGS`, `MOCK_ASSET_TAG_FORMATS` in `mock-data.ts` | Hard reload |
 | Everything else (students, SOA, grades) | Module-level arrays in `mock-data.ts` | Hard reload |
 
 - **User Management** (`/staff/users`) — SUPER_ADMIN only. Two tabs: **Users** (searchable table of all system accounts, read-only) and **Role Management**. Role Management shows the 8 system roles as read-only cards (lock icon, cannot be edited/deleted) plus a custom-role table with Create/Edit/Delete. Create-role modal has a 7-module × 4-permission (view/create/edit/delete) matrix; enabling create/edit/delete auto-enables view. Custom roles stored in `MOCK_CUSTOM_ROLES: CustomRole[]` (mutable). Types: `ModuleKey`, `ModulePermission`, `CustomRole`, `SystemUser` in `types/index.ts`.
 
 - **Budget Management** (`/staff/treasury/budget`) — ACCOUNTING + SUPER_ADMIN only. Three tabs: **Overview** (summary cards + per-department budget health cards), **Budgets** (table with inline progress bars, edit/delete), **Expenses** (expense log). Budget health: green < 80%, amber 80–99%, red ≥ 100%. `Create Budget` modal: name, department (4 colleges), amount, period type (Monthly/Quarterly/Yearly), start/end dates. `Record Expense` modal: selects a budget, validates amount ≤ remaining balance, auto-deducts. All budget data isolated from Treasury — does NOT touch SOA/payment arrays. Types: `Budget`, `BudgetExpense`, `BudgetPeriod` in `types/index.ts`. Mock data: `MOCK_BUDGETS` (4 pre-loaded Q1 2025 quarterly budgets), `MOCK_BUDGET_EXPENSES` (10 sample expenses), `BUDGET_DEPARTMENTS` const in `mock-data.ts`. **Dean budget view** (`/staff/dean/budget`) — read-only, scoped to `deanDepartment`; shows summary cards + per-budget progress cards with itemized expense table. Deans cannot edit.
+
+- **Financial Operations Suite** — Complete enterprise financial ecosystem. Three portals, one role each.
+
+  **Treasury Office** (`TREASURER`):
+  - `/staff/treasury/collections` — Record payments, issue OR numbers, daily collection stats, filter by date/type.
+  - `/staff/treasury/receipts` — Official Receipt log: search, print (`window.print()`), void with reason modal. OR numbers auto-generated via `nextORNumber()` in `mock-data.ts` (format `OR-2025-NNNNN`).
+
+  **Accounting Office** (`ACCOUNTING`):
+  - `/staff/accounting` — Dashboard: cashflow stat cards (total inflow, outflow, net, reserved), Recharts BarChart monthly trend, department budget utilization bars, recent expenses, pending PRs needing approval.
+  - `/staff/accounting/cashflow` — Cashflow ledger: INFLOW (green) / OUTFLOW (red) badges, running balance column, record entry modal, month filter.
+  - `/staff/accounting/expenses` — Expense management: approve/reject PENDING expenses, record expense modal, filter by category/status/department.
+  - `/staff/accounting/reports` — 4 tabs: Cashflow / Budget Utilization / Expense Summary / Collection Summary, each with Recharts BarChart or PieChart + print export.
+
+  **Purchasing Office** (`PURCHASING_OFFICER`):
+  - `/staff/purchasing` — Dashboard: stat cards, recent PRs, active POs with delivery dates.
+  - `/staff/purchasing/requests` — PR management: filter tabs by status, PR cards with approval chain timeline, create PR with real-time budget validation, approve/reject per role (ACCOUNTING = step 1, PURCHASING_OFFICER = step 2).
+  - `/staff/purchasing/orders` — PO management: create PO from approved PR, vendor assignment, mark delivered.
+  - `/staff/purchasing/vendors` — Vendor registry: 3-col card grid, add/edit modal, activate/deactivate.
+
+  **Budget reservation system**: When a PR is submitted → `MOCK_BUDGET_RESERVATIONS` entry created with `status: 'ACTIVE'` → available balance = `budget.amount − sum(expenses) − sum(ACTIVE reservations)`. If amount > remaining, submission is blocked with "Insufficient Department Budget" error. On PR approval → reservation becomes `CONVERTED`, expense recorded. On rejection/cancellation → reservation `RELEASED`, balance restored.
+
+  **New types** (all in `types/index.ts`): `PRStatus` (8 values), `PRPriority`, `POStatus`, `VendorStatus`, `VendorCategory`, `ExpenseCategory`, `ExpenseStatus`, `ReservationStatus`, `PRItem`, `PRApproval`, `PurchaseRequest`, `POItem`, `PurchaseOrder`, `Vendor`, `OfficialReceipt`, `CashflowEntry`, `FinancialExpense`, `BudgetReservation`.
+
+  **Mock data** (in `mock-data.ts`): `MOCK_VENDORS` (5), `MOCK_PURCHASE_REQUESTS` (5 across all statuses), `MOCK_PURCHASE_ORDERS` (2), `MOCK_OFFICIAL_RECEIPTS` (5), `MOCK_CASHFLOW` (8 entries), `MOCK_FIN_EXPENSES` (5), `MOCK_BUDGET_RESERVATIONS` (4), `nextORNumber()` sequence helper.
+
+  **Approval chain**: PRApproval array on each PR — step 1 = ACCOUNTING, step 2 = PURCHASING_OFFICER. SUPER_ADMIN can approve both. Status per step: `PENDING | APPROVED | REJECTED`.
+
+- **Universal Request Center** — `/staff/requests`, `/teacher/requests`, `/student/requests`. All three are thin wrappers around the shared `src/components/shared/RequestCenter.tsx` component. Props: `portal`, `userId`, `userName`, `userRole`, `championDept?` (if the user is a department champion). **Request categories and automatic routing**: LEAVE → HR, PURCHASE → PURCHASING, ASSET → AMO, GENERAL → ADMIN. Users never manually select a department — routing is automatic. **Champion dept map** (in staff wrapper): HR_STAFF→HR, PURCHASING_OFFICER→PURCHASING, AMO→AMO, SUPER_ADMIN→ADMIN. Champions see an **Incoming Requests** tab filtered to their department. Create Request flow is 2-step: type selector grid → dynamic form per category. **Status flow**: DRAFT → SUBMITTED → UNDER_REVIEW → APPROVED → REJECTED → PROCESSING → COMPLETED → CANCELLED. **Types**: `RequestCategory`, `RequestType` (16 values), `RequestStatus`, `RequestPriority`, `ChampionDept`, `RequestActivity`, `UniversalRequest` in `types/index.ts`. **Mock data**: `MOCK_REQUESTS` (5 seeded), `nextReqNumber()` in `mock-data.ts`. Sidebar: `Inbox` icon, visible to all roles in all three portals.
+
+- **Institutional Ticketing / Support Center** — `/staff/support`, `/teacher/support`, `/student/support`. All three wrap shared `src/components/shared/SupportCenter.tsx`. Props: `portal`, `userId`, `userName`, `userRole`, `agentDept?`. **Ticket auto-routing**: category → department → champion role, defined in `CATEGORY_ROUTING` inside the component (user never sees department assignment). **SLA timers**: LOW=48h, MEDIUM=24h, HIGH=8h, CRITICAL=1h. SLA badge colors: green=ok, amber=warning (<25% remaining), red=breached. **Status flow**: OPEN → UNDER_REVIEW → IN_PROGRESS → WAITING_FOR_USER → ESCALATED → RESOLVED → CLOSED. **Conversation thread**: user messages right-aligned (brand bubble), staff left-aligned (white bubble with avatar); internal notes shown only to agents (amber background, lock icon). **Agent actions per status**: OPEN→Close/Return; IN_PROGRESS→Resolved; RESOLVED→Close. Post-resolution satisfaction rating (1–5 stars). **Knowledge Base tab**: `MOCK_KB_ARTICLES` (6 articles), searchable, category filter pills, helpful/not-helpful voting. **Analytics tab** (agents only): Recharts BarChart status distribution + PieChart department distribution. **Student portal**: KB is second tab; no Inbox or Analytics tabs. **Types**: `TicketStatus`, `TicketPriority`, `TicketDepartment`, `TicketCategory`, `TicketReply`, `TicketSatisfaction`, `SupportTicket`, `KBArticle` in `types/index.ts`. **Mock data**: `MOCK_TICKETS` (5), `MOCK_KB_ARTICLES` (6), `nextTicketNumber()` in `mock-data.ts`. Sidebar: `LifeBuoy` icon, all portals.
+
+- **AI Assistant (Floating)** — `src/components/shared/AIAssistant.tsx`. Rendered in all three portal layouts (`staff/layout.tsx`, `teacher/layout.tsx`, `student/layout.tsx`) via server component passing `user.role` and `user.name` from `getServerSession`. Fixed `bottom-24px right-24px z-[999]` — above header/sidebar, below modals. 56×56px navy gradient button, `Sparkles` icon when closed / `X` when open, pulsing unread dot badge. Chat panel: 360×520px, slides up from `origin-bottom-right`. **Greeting** on first open is personalized per portal. **Response engine**: `getAIResponse(message, role, portal)` — comprehensive keyword-matching covering all 11 role branches (Student, Teacher, Registrar, Treasurer, Accounting, HR_STAFF, AMO, Purchasing, Academic Admin, Dean, Super Admin). Responses include navigation paths and tips specific to what each role can actually do. **Typing simulation**: 800–1400ms random delay before each AI response. **Suggested prompts**: role-specific chips shown after every AI response. No external API — fully rule-based.
+
+- **AMS Enhancements**:
+  - **Stat cards clickable** (`/staff/ams/page.tsx`): each card is a `Link` — Total→assets, Available→assets?status=AVAILABLE, Deployed→assets?status=DEPLOYED, Borrowed→borrow, Maintenance→maintenance, Overdue→borrow?tab=overdue. Hover: border highlight + icon scale.
+  - **Mass Register via Excel** (`/staff/ams/assets/page.tsx`): "Mass Register" button opens a 3-step inline modal. Step 1: Download `SchoolEco_Asset_Template.xlsx` (2-sheet .xlsx — "Assets" sheet with header row + sample row + empty rows, "Instructions" sheet with column guide). Step 2: Drag-drop upload area. Step 3: Summary counts + error list + preview table + "Register N Assets" button. Template generated by `downloadAssetExcel()` in `import-templates.ts`; parsed by `parseAssetExcel(file)` which skips blank rows and the sample row (detected by asset name "Dell Inspiron 15").
+  - **Low-stock bell notification** (`/staff/ams/consumables/page.tsx`): `useEffect` on mount pushes/updates a `MOCK_NOTIFICATIONS` entry (`id: 'ams_low_stock'`) listing all low-stock items with a link to `/staff/ams/consumables`.
+
+- **Student Dashboard** — `Student ID` and `Notifications` stat cards removed from the student dashboard page.
 
 - **Student "My Courses"** (`/student/subjects`) — Blackboard-style card grid. Six `BANNER_COLORS` gradient palettes cycle per card. Banner shows large watermark course code + frosted pill badge. "More info" toggle (outside the Link so it doesn't navigate) expands: course ID in structured format `{code}.{section}.1T.25.26`, instructor, room, full schedule, units, enrollment status, "Go to course →" CTA. Grid/list toggle. Favorites (star) state is local. Locked cards (PRE_ENROLLED) show amber badge with Lock icon.
 
@@ -436,12 +493,31 @@ If the UI renders as unstyled HTML (no CSS), a stale production `.next` build is
 
   **Print SOA** — Both treasury SOA page (`/staff/treasury/soa/[studentId]`) and student SOA page (`/student/soa`) have functional "Print SOA" / "Print / Download" buttons. `handlePrint()` opens a new window with formatted HTML (school name header, student info, billing breakdown by type, totals, payment history, signature lines) and calls `window.print()` on it. Styled for A4 with `@media print` margins.
 
-- **Grade Finalization Room** — controlled pipeline: Faculty → Finalization Room → Registrar Approval → Student Records.
-  - **Teacher flow** (`/teacher/grades` + `/teacher/subjects/[id]/grades`): grade book now has controlled inputs that persist to `MOCK_GRADES` on Save. "Finalize Grades" button creates a `GradeSubmission` in `MOCK_GRADE_SUBMISSIONS`, adds the offeringId to `LOCKED_OFFERINGS` (Set), and sends a notification to the Registrar. Locked offerings disable grade editing; if rejected the lock is removed so teacher can re-submit.
-  - **Finalization Room** (`/staff/grades`): accessible by REGISTRAR, ACADEMIC_ADMIN, SUPER_ADMIN. Pending / Approved / Rejected tabs. Registrar reviews each submission in a modal with the full grade table, then Approves (pushes entries to `MOCK_GRADES`) or Rejects (with reason, unlocks offering). Both actions write to `MOCK_AUDIT_LOGS` and `MOCK_NOTIFICATIONS`.
-  - **Student view** (`/student/grades`): reads only from APPROVED `MOCK_GRADE_SUBMISSIONS` entries — draft or pending grades are never shown.
-  - **Types**: `GradeSubmission`, `GradeSubmissionEntry`, `GradeSubmissionStatus` in `src/types/index.ts`.
-  - **Mock data**: `MOCK_GRADE_SUBMISSIONS: GradeSubmission[]` and `LOCKED_OFFERINGS: Set<string>` exported from `src/lib/mock-data.ts`.
+- **Grade Finalization Room** — four-status pipeline: Teacher → Registrar closes → Registrar publishes → Student sees.
+  - **`GradeSubmissionStatus`**: `'SUBMITTED' | 'CLOSED' | 'RETURNED' | 'PUBLISHED'` (NOT the old `PENDING/APPROVED/REJECTED`).
+  - **Teacher flow** (`/teacher/grades` + `/teacher/subjects/[id]/grades`): "Submit Grades" creates a `GradeSubmission` with status `SUBMITTED` and adds offering to `LOCKED_OFFERINGS`. If returned, teacher can re-edit and resubmit. Status banners on the grade book detail page reflect each status.
+  - **Finalization Room** (`/staff/grades`): REGISTRAR + SUPER_ADMIN. Four tabs: Submitted / Closed / Published / Returned. Actions per status — on **SUBMITTED**: "Close Submission" (→ `CLOSED`, stays locked) or "Return to Teacher" (→ `RETURNED`, unlocks offering, requires reason). On **CLOSED**: "Reopen" (→ `RETURNED`, unlocks) or "Publish to Students" (→ `PUBLISHED`, pushes entries to `MOCK_GRADES`).
+  - **Student view** (`/student/grades`): reads only `PUBLISHED` submissions — nothing shown until Registrar explicitly publishes.
+  - **`GradeSubmission` fields**: `closedAt/closedBy`, `publishedAt/publishedBy`, `returnedAt/returnedBy`, `returnReason` (replaces old `rejectionReason`/`reviewedAt`/`reviewedBy`).
+  - **Mock data**: `MOCK_GRADE_SUBMISSIONS: GradeSubmission[]` and `LOCKED_OFFERINGS: Set<string>` in `src/lib/mock-data.ts`.
+
+- **AMS Module** (`/staff/ams`) — AMO role + SUPER_ADMIN only. Complete asset lifecycle management.
+  - **AMS Dashboard** (`/staff/ams`) — 6 stat cards (total/available/deployed+in-use/borrowed/maintenance/overdue), 4 quick-action cards, recent activity feed (last 5 `MOCK_ASSET_HISTORY`), active deployments panel with overdue highlighting, low-stock consumables bar chart, warranty expiry alerts (180-day window with red/amber/green badges).
+  - **Asset Registry** (`/staff/ams/assets`) — full table with search/category/status/department filters. Status badge is clickable — opens a 9-option popover to change status in place. View → detail, Edit → status change.
+  - **Register Asset** (`/staff/ams/assets/new`) — 4-step mobile-first wizard: (1) Basic Info with camera photo capture (`capture="environment"`), category, brand/model, serial, status selector; (2) Ownership — department, custodian type (Individual/Department), custodian name; (3) Purchase — date, supplier, cost, warranty; (4) Location + Inclusions builder. Auto-generates asset tag using the default `AssetTagFormat` from `MOCK_ASSET_TAG_FORMATS`.
+  - **Asset Detail** (`/staff/ams/assets/[id]`) — header card with navy banner, category icon avatar, asset tag/name/status/category, info pills. 4 tabs: **Info** (Basic Info, Location, Purchase Details with warranty warning, Inclusions), **Deployments** (table, Return Asset modal with missing-accessory multi-checkbox and conditional damage report), **History** (vertical timeline with colored dots per activity type, activity type filter), **Maintenance** (table, Add Maintenance modal that sets asset status to UNDER_MAINTENANCE and logs MAINTENANCE_STARTED history).
+  - **Borrow & Deploy** (`/staff/ams/borrow`) — 4 stat cards, filter tabs (All/Active/Returned/Overdue), deployment table. New Borrow/Deploy modal: asset select (AVAILABLE only), borrower info, deployment type radio (Temporary/Long-term/Permanent), date/time, purpose, terms note. Return modal: same fields as Asset Detail return flow. All mutations update asset status + push to `MOCK_ASSET_HISTORY`.
+  - **Consumables** (`/staff/ams/consumables`) — pill tabs toggle Inventory / Transaction Log. Inventory: 2-col card grid with progress bar + threshold marker, stock status badge (LOW/NORMAL/OVERSTOCK), three-dot menu (Issue/Restock/Edit/Delete). Issue Stock modal deducts from `MOCK_CONSUMABLES` + pushes `ConsumableTransaction`. Transaction Log table sorted desc by date.
+  - **Maintenance** (`/staff/ams/maintenance`) — table with type/status badges. Complete modal: completion date, cost, notes → sets status COMPLETED + sets asset AVAILABLE + pushes MAINTENANCE_COMPLETED history. Cancel → sets CANCELLED + restores asset status. Log Maintenance modal creates new `MaintenanceLog` + sets asset UNDER_MAINTENANCE.
+  - **Tag Builder** (`/staff/ams/tag-builder`) — 60/40 split: builder panel (name, separator radio, component chip list with ↑↓ reorder + delete, Add Component dropdown with 7 types), preview panel (live mono tag using example values, saved formats list with Set Default / Delete). Saves to `MOCK_ASSET_TAG_FORMATS`. Auto-dismiss toast notifications.
+
+  **AMS types** (all in `src/types/index.ts`): `AssetCategory` (10 values), `AssetStatus` (9 values), `DeploymentType`, `AssetDeploymentStatus`, `AssetActivityType` (11 values), `ConsumableUnit`, `StockStatus`, `MaintenanceType`, `MaintenanceStatus`, `ConsumableTransactionType`, `TagComponentType` (7 values), `Asset`, `AssetInclusion`, `AssetDeployment`, `AssetHistory`, `Consumable`, `ConsumableTransaction`, `MaintenanceLog`, `TagFormatComponent`, `AssetTagFormat`.
+
+  **Mock data** (in `src/lib/mock-data.ts`): `MOCK_ASSETS` (8 assets), `MOCK_ASSET_DEPLOYMENTS` (3), `MOCK_ASSET_HISTORY` (9), `MOCK_CONSUMABLES` (5), `MOCK_CONSUMABLE_TRANSACTIONS` (6), `MOCK_MAINTENANCE_LOGS` (3), `MOCK_ASSET_TAG_FORMATS` (2).
+
+  **Demo account**: `amo@school.edu` / `password` → portal: `/staff/ams`.
+
+  **Asset tag generation**: `generateTag(category)` in `assets/new/page.tsx` reads the default format from `MOCK_ASSET_TAG_FORMATS` and builds `IT-{CAT_ABBR}-{YEAR}-{SEQUENCE}`. The `CAT_ABBR` map converts each `AssetCategory` to a short string.
 
 - **HRIS Module** (`/staff/hr`) — HR_STAFF role + SUPER_ADMIN only. Complete employee lifecycle management.
   - **HR Dashboard** (`/staff/hr`) — stat cards (total/active employees, open jobs, pending leaves), quick-action cards linking to sub-pages, recent job postings, pending leaves list, ATS pipeline summary (applicant counts per stage).
@@ -457,6 +533,25 @@ If the UI renders as unstyled HTML (no CSS), a stale production `.next` build is
   **Mock data** (in `src/lib/mock-data.ts`): `MOCK_JOB_POSTINGS` (5 postings), `MOCK_JOB_APPLICATIONS` (13 applicants across 3 jobs), `MOCK_HR_EMPLOYEES` (5 employees), `MOCK_HR_ONBOARDING` (1 record with 10 tasks), `MOCK_HR_LEAVES` (7 requests).
 
   **Demo account**: `hr@school.edu` / `password` → portal: `/staff/hr`.
+
+- **Terms of Service** (`/terms`) — Public route (no auth). Accessible to all users. Based on the 13-section SMS Legal Master Policy Framework (effective May 10, 2026, v1.0). Layout: sticky top nav, hero section with version/date badges, amber notice banner, sticky left TOC (desktop), 13 numbered section cards (each with section code badge), acceptance card in navy gradient. Section anchors: `#section-01` through `#section-13`. Linked from: login page (agreement checkbox), landing page footer, settings page Terms & Legal card.
+
+  **Login page ToS agreement** — A full-width toggle button above the Sign In button. Before clicking: ghost button "I Agree to the Terms of Service". After clicking: solid emerald button with checkmark "Agreed — Terms Accepted". The Sign In button (`disabled={!agreed}`) is blocked until the user clicks agree. The Terms link inside the button opens in a new tab without toggling the checkbox (`e.stopPropagation()`). State: `const [agreed, setAgreed] = useState(false)`.
+
+  **Settings page Terms section** — "Terms & Legal" card at the bottom of `/staff/settings`. Contains: full ToS link (opens new tab), acknowledgement notice (quotes Section 9 audit logging), 3 quick-access shortcut cards for Data Governance (§03), Acceptable Use (§06), and Audit & Monitoring (§09) linking directly to anchors.
+
+- **Excel / CSV Import System** — Bulk import for 5 modules. Two shared files:
+  - `src/lib/import-templates.ts` — `IMPORT_TEMPLATES` record with 5 template definitions (`students`, `employees`, `assets`, `consumables`, `subjects`). Each template has `columns: TemplateColumn[]` (key, label, required, hint, example) and `sampleRows`. `downloadCSV(templateId)` generates and downloads a `.csv` with 4 header rows (keys / friendly labels / hints / examples) + 2 sample data rows — opens natively in Excel/Google Sheets. `parseImportCSV(content, templateId)` splits CSV, skips hint/example rows by detecting first-cell content, validates required fields, returns `ParseResult { rows, totalRows, validRows, errorRows }`.
+  - `src/components/shared/ImportModal.tsx` — 3-tab modal: **Step 1 Download Template** (column reference table, Download .CSV button); **Step 2 Upload File** (drag-and-drop + file picker, accepts `.csv`); **Step 3 Review & Import** (3 summary cards total/valid/errors, scrollable row preview table with ✓ OK or error detail per row, Re-upload button, Import N Records emerald button disabled if 0 valid rows). Shows success state after import completes.
+
+  **Import buttons** added to 5 pages — each wires `onImport` callback to push rows to the corresponding mock array and call `setState` to re-render:
+  | Page | Template | Target array |
+  |---|---|---|
+  | `/staff/registrar` | `students` | `MOCK_STUDENTS` |
+  | `/staff/academic` | `subjects` | `MOCK_SUBJECTS` |
+  | `/staff/hr/employees` | `employees` | `MOCK_HR_EMPLOYEES` |
+  | `/staff/ams/assets` | `assets` | `MOCK_ASSETS` |
+  | `/staff/ams/consumables` | `consumables` | `MOCK_CONSUMABLES` |
 
 **Not yet built**
 - `POST /api/schedules` — persist schedule to DB with conflict detection

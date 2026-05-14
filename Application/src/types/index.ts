@@ -9,6 +9,8 @@ export type Role =
   | 'ACCOUNTING'
   | 'DEAN'
   | 'HR_STAFF'
+  | 'AMO'
+  | 'PURCHASING_OFFICER'
   | 'TEACHER'
   | 'STUDENT'
 
@@ -746,7 +748,11 @@ export interface SessionUser {
 
 // ─── Grade Finalization ───────────────────────────────────────────────────────
 
-export type GradeSubmissionStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+// SUBMITTED → teacher sent grades for review (grade book locked)
+// CLOSED    → registrar locked/closed submission (still locked, under registrar review)
+// RETURNED  → registrar returned to teacher for corrections (grade book unlocked)
+// PUBLISHED → registrar published to student records (permanently locked, visible to students)
+export type GradeSubmissionStatus = 'SUBMITTED' | 'CLOSED' | 'RETURNED' | 'PUBLISHED'
 
 export interface GradeSubmissionEntry {
   enrollmentId: string
@@ -774,9 +780,13 @@ export interface GradeSubmission {
   status: GradeSubmissionStatus
   entries: GradeSubmissionEntry[]
   submittedAt: string
-  reviewedAt?: string
-  reviewedBy?: string
-  rejectionReason?: string
+  closedAt?: string
+  closedBy?: string
+  publishedAt?: string
+  publishedBy?: string
+  returnedAt?: string
+  returnedBy?: string
+  returnReason?: string
 }
 
 // ─── LMS ─────────────────────────────────────────────────────────────────────
@@ -959,6 +969,372 @@ export interface HRLeaveRequest {
   appliedAt: string
 }
 
+// ─── AMS (Asset Management System) ──────────────────────────────────────────
+
+export type AssetCategory =
+  | 'LAPTOP' | 'DESKTOP' | 'MONITOR' | 'PRINTER' | 'PROJECTOR'
+  | 'ROUTER' | 'LAB_EQUIPMENT' | 'TABLET' | 'SERVER' | 'OTHER_FIXED'
+
+export type AssetStatus =
+  | 'AVAILABLE' | 'BORROWED' | 'DEPLOYED' | 'IN_USE'
+  | 'UNDER_MAINTENANCE' | 'DAMAGED' | 'LOST' | 'RETIRED' | 'OVERDUE'
+
+export type DeploymentType =
+  | 'TEMPORARY_BORROW' | 'LONG_TERM_DEPLOYMENT' | 'PERMANENT_ASSIGNMENT'
+
+export type AssetDeploymentStatus = 'ACTIVE' | 'RETURNED' | 'OVERDUE'
+
+export type AssetActivityType =
+  | 'REGISTERED' | 'BORROWED' | 'RETURNED' | 'DEPLOYED'
+  | 'MAINTENANCE_STARTED' | 'MAINTENANCE_COMPLETED'
+  | 'STATUS_CHANGED' | 'CUSTODIAN_CHANGED' | 'DAMAGED' | 'LOST' | 'RETIRED'
+
+export type ConsumableUnit =
+  | 'PIECE' | 'REAM' | 'BOX' | 'BOTTLE' | 'SET' | 'PACK' | 'LITER' | 'KILOGRAM'
+
+export type StockStatus = 'LOW' | 'NORMAL' | 'OVERSTOCK'
+
+export type MaintenanceType =
+  | 'REPAIR' | 'PREVENTIVE' | 'WARRANTY_CLAIM' | 'INSPECTION'
+
+export type MaintenanceStatus =
+  | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
+
+export type ConsumableTransactionType = 'ISSUE' | 'RESTOCK' | 'ADJUSTMENT'
+
+export type TagComponentType =
+  | 'PREFIX' | 'DEPT_CODE' | 'CATEGORY' | 'YEAR' | 'SEQUENCE' | 'SUFFIX' | 'CUSTOM'
+
+export interface AssetInclusion {
+  id: string
+  name: string
+  quantity: number
+  photo?: string
+}
+
+export interface Asset {
+  id: string
+  assetTag: string
+  name: string
+  category: AssetCategory
+  brand?: string
+  model?: string
+  serialNumber?: string
+  description?: string
+  status: AssetStatus
+  department: string
+  custodianType: 'INDIVIDUAL' | 'DEPARTMENT'
+  custodianId?: string
+  custodianName?: string
+  purchaseDate?: string
+  supplier?: string
+  purchaseCost?: number
+  warrantyExpiry?: string
+  campus?: string
+  building?: string
+  room?: string
+  storageArea?: string
+  photo?: string
+  inclusions?: AssetInclusion[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AssetDeployment {
+  id: string
+  assetId: string
+  assetTag: string
+  assetName: string
+  borrowerName: string
+  borrowerDepartment: string
+  custodian?: string
+  deploymentType: DeploymentType
+  startDate: string
+  startTime?: string
+  expectedReturnDate?: string
+  expectedReturnTime?: string
+  purpose: string
+  status: AssetDeploymentStatus
+  returnDate?: string
+  returnTime?: string
+  returnedBy?: string
+  receivedBy?: string
+  conditionOnReturn?: string
+  inspectionNotes?: string
+  missingAccessories?: string[]
+  damageReport?: string
+  createdAt: string
+}
+
+export interface AssetHistory {
+  id: string
+  assetId: string
+  assetTag: string
+  assetName: string
+  activityType: AssetActivityType
+  user?: string
+  department?: string
+  custodian?: string
+  startDate: string
+  endDate?: string
+  duration?: string
+  location?: string
+  status: AssetStatus
+  remarks?: string
+  createdAt: string
+}
+
+export interface Consumable {
+  id: string
+  name: string
+  description?: string
+  category: string
+  unit: ConsumableUnit
+  quantity: number
+  lowStockThreshold: number
+  overstockThreshold: number
+  purchaseDate?: string
+  supplier?: string
+  cost?: number
+  createdAt: string
+}
+
+export interface ConsumableTransaction {
+  id: string
+  consumableId: string
+  consumableName: string
+  type: ConsumableTransactionType
+  quantity: number
+  requestedBy: string
+  department: string
+  purpose?: string
+  balanceBefore: number
+  balanceAfter: number
+  createdAt: string
+}
+
+export interface MaintenanceLog {
+  id: string
+  assetId: string
+  assetTag: string
+  assetName: string
+  maintenanceType: MaintenanceType
+  status: MaintenanceStatus
+  description: string
+  reportedBy: string
+  assignedTo?: string
+  startDate: string
+  completionDate?: string
+  cost?: number
+  notes?: string
+  createdAt: string
+}
+
+export interface TagFormatComponent {
+  type: TagComponentType
+  value?: string
+  width?: number
+}
+
+export interface AssetTagFormat {
+  id: string
+  name: string
+  components: TagFormatComponent[]
+  separator: string
+  preview: string
+  isDefault: boolean
+  createdAt: string
+}
+
+// ─── Financial Operations Suite ───────────────────────────────────────────────
+
+export type PRStatus = 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'PROCUREMENT_ONGOING' | 'DELIVERED' | 'CLOSED' | 'CANCELLED'
+export type PRPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
+export type POStatus = 'DRAFT' | 'SENT' | 'CONFIRMED' | 'DELIVERED' | 'CLOSED' | 'CANCELLED'
+export type VendorStatus = 'ACTIVE' | 'INACTIVE' | 'BLACKLISTED'
+export type VendorCategory = 'SUPPLIES' | 'EQUIPMENT' | 'SERVICES' | 'CONSTRUCTION' | 'IT' | 'FOOD' | 'MEDICAL' | 'OTHER'
+export type ExpenseCategory = 'OPERATIONAL' | 'PROCUREMENT' | 'PAYROLL' | 'MAINTENANCE' | 'UTILITIES' | 'EQUIPMENT' | 'OTHER'
+export type ExpenseStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAID'
+export type ReservationStatus = 'ACTIVE' | 'RELEASED' | 'CONVERTED'
+
+export interface PRItem { id: string; name: string; quantity: number; unit: string; estimatedCost: number; description?: string }
+
+export interface PRApproval { step: number; role: string; approverName?: string; status: 'PENDING' | 'APPROVED' | 'REJECTED'; comments?: string; timestamp?: string }
+
+export interface PurchaseRequest {
+  id: string; prNumber: string; title: string; department: string
+  requestedBy: string; requestedByName: string
+  items: PRItem[]; totalAmount: number; purpose: string; priority: PRPriority
+  status: PRStatus; budgetId?: string; reservationId?: string
+  notes?: string; approvalChain: PRApproval[]; purchaseOrderId?: string
+  schoolId: string; createdAt: string; updatedAt: string
+  submittedAt?: string; approvedAt?: string; closedAt?: string; rejectedAt?: string; rejectionReason?: string
+}
+
+export interface POItem { id: string; name: string; quantity: number; unit: string; unitPrice: number; total: number }
+
+export interface PurchaseOrder {
+  id: string; poNumber: string; prId: string; vendorId: string; vendorName: string
+  items: POItem[]; totalAmount: number; status: POStatus
+  deliveryDate?: string; deliveredAt?: string; terms?: string; notes?: string
+  createdBy: string; schoolId: string; createdAt: string; updatedAt: string
+}
+
+export interface Vendor {
+  id: string; name: string; contactPerson?: string; phone?: string; email?: string
+  address?: string; category: VendorCategory; status: VendorStatus; tin?: string; notes?: string
+  schoolId: string; createdAt: string
+}
+
+export interface OfficialReceipt {
+  id: string; orNumber: string; studentId: string; studentName: string; studentNo: string
+  amount: number; paymentType: string; semesterId: string; soaId?: string
+  issuedBy: string; issuedAt: string; schoolId: string
+  voidedAt?: string; voidedBy?: string; voidReason?: string
+}
+
+export interface CashflowEntry {
+  id: string; type: 'INFLOW' | 'OUTFLOW'; amount: number; description: string
+  reference?: string; category: string; date: string; schoolId: string; createdAt: string
+}
+
+export interface FinancialExpense {
+  id: string; title: string; category: ExpenseCategory; department?: string
+  amount: number; vendor?: string; date: string; description?: string
+  prId?: string; poId?: string; status: ExpenseStatus
+  approvedBy?: string; approvedAt?: string; schoolId: string; createdAt: string; createdBy: string
+}
+
+export interface BudgetReservation {
+  id: string; budgetId: string; prId: string; prNumber: string; department: string
+  amount: number; status: ReservationStatus; createdAt: string
+  releasedAt?: string; convertedAt?: string
+}
+
+// ─── Universal Request Center ─────────────────────────────────────────────────
+
+export type RequestCategory = 'LEAVE' | 'PURCHASE' | 'ASSET' | 'GENERAL'
+
+export type RequestType =
+  | 'VACATION_LEAVE' | 'SICK_LEAVE' | 'MATERNITY_LEAVE' | 'PATERNITY_LEAVE'
+  | 'EMERGENCY_LEAVE' | 'OFFICIAL_BUSINESS_LEAVE'
+  | 'PURCHASE_REQUEST' | 'PROCUREMENT_REQUEST' | 'SUPPLY_REQUEST' | 'EQUIPMENT_PURCHASE'
+  | 'PC_REQUEST' | 'LAPTOP_REQUEST' | 'EQUIPMENT_BORROW' | 'DEVICE_DEPLOYMENT' | 'ASSET_RETURN'
+  | 'GENERAL_REQUEST'
+
+export type RequestStatus = 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED'
+
+export type RequestPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
+
+export type ChampionDept = 'HR' | 'PURCHASING' | 'AMO' | 'ADMIN'
+
+export interface RequestActivity {
+  id: string
+  action: string
+  performedBy: string
+  performedByRole?: string
+  timestamp: string
+  remarks?: string
+}
+
+export interface UniversalRequest {
+  id: string
+  reqNumber: string
+  category: RequestCategory
+  type: RequestType
+  title: string
+  status: RequestStatus
+  priority: RequestPriority
+  submittedBy: string
+  submittedByName: string
+  submittedByRole: string
+  portal: 'staff' | 'teacher' | 'student'
+  championDept: ChampionDept
+  assignedToName?: string
+  formData: Record<string, string | number | undefined>
+  activities: RequestActivity[]
+  schoolId: string
+  createdAt: string
+  updatedAt: string
+  submittedAt?: string
+  completedAt?: string
+  remarks?: string
+}
+
+// ─── Support Center / Ticketing ───────────────────────────────────────────────
+
+export type TicketStatus = 'OPEN' | 'UNDER_REVIEW' | 'IN_PROGRESS' | 'WAITING_FOR_USER' | 'ESCALATED' | 'RESOLVED' | 'CLOSED'
+export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+export type TicketDepartment = 'REGISTRAR' | 'ACADEMIC' | 'TREASURY' | 'HR' | 'AMO' | 'PURCHASING' | 'IT_SUPPORT' | 'GENERAL'
+
+export type TicketCategory =
+  | 'ENROLLMENT_CONCERN' | 'SUBJECT_CONCERN' | 'GRADES_CONCERN' | 'LMS_ACCESS_ISSUE' | 'SCHEDULE_CONCERN'
+  | 'TOR_INQUIRY' | 'COR_CONCERN' | 'STUDENT_RECORDS' | 'DOCUMENT_CONCERN'
+  | 'PAYMENT_CONCERN' | 'OR_INQUIRY' | 'BALANCE_CONCERN'
+  | 'LOGIN_ISSUE' | 'PASSWORD_RESET' | 'BUG_REPORT' | 'TECHNICAL_ISSUE'
+  | 'GENERAL_INQUIRY' | 'INSTITUTIONAL_CONCERN'
+  | 'HR_CONCERN' | 'ASSET_CONCERN' | 'PROCUREMENT_CONCERN'
+
+export interface TicketReply {
+  id: string
+  ticketId: string
+  authorId: string
+  authorName: string
+  authorRole: string
+  content: string
+  isInternal: boolean
+  isStaff: boolean
+  attachments?: string[]
+  createdAt: string
+}
+
+export interface TicketSatisfaction {
+  rating: 1 | 2 | 3 | 4 | 5
+  comment?: string
+  submittedAt: string
+}
+
+export interface SupportTicket {
+  id: string
+  ticketNumber: string
+  subject: string
+  description: string
+  category: TicketCategory
+  department: TicketDepartment
+  status: TicketStatus
+  priority: TicketPriority
+  submittedBy: string
+  submittedByName: string
+  submittedByRole: string
+  portal: 'staff' | 'teacher' | 'student'
+  assignedTo?: string
+  assignedToName?: string
+  replies: TicketReply[]
+  slaDeadline: string
+  firstResponseAt?: string
+  resolvedAt?: string
+  closedAt?: string
+  satisfaction?: TicketSatisfaction
+  schoolId: string
+  createdAt: string
+  updatedAt: string
+  tags?: string[]
+}
+
+export interface KBArticle {
+  id: string
+  title: string
+  slug: string
+  category: string
+  content: string
+  tags: string[]
+  views: number
+  helpful: number
+  notHelpful: number
+  publishedAt: string
+  updatedAt: string
+}
+
 // ─── Dashboard stats ──────────────────────────────────────────────────────────
 
 export interface PipelineStats {
@@ -968,4 +1344,84 @@ export interface PipelineStats {
   pendingPayments: number
   activeSubjects: number
   activeTeachers: number
+}
+
+// ─── Universal Form Builder ───────────────────────────────────────────────────
+
+export type FormFieldType =
+  | 'SHORT_TEXT' | 'LONG_TEXT' | 'NUMBER' | 'EMAIL' | 'PHONE' | 'DATE' | 'TIME'
+  | 'DROPDOWN' | 'MULTI_SELECT' | 'CHECKBOX' | 'RADIO' | 'FILE_UPLOAD'
+  | 'RATING' | 'SECTION_DIVIDER' | 'RICH_TEXT'
+
+export type FormStatus = 'DRAFT' | 'PUBLISHED' | 'CLOSED' | 'ARCHIVED'
+export type FormVisibility = 'PUBLIC_INTERNAL' | 'DEPARTMENT_ONLY' | 'STUDENT_ONLY' | 'STAFF_ONLY' | 'CUSTOM'
+export type FormSubmissionStatus = 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'COMPLETED'
+
+export interface FormCondition {
+  fieldId: string
+  operator: 'equals' | 'not_equals' | 'contains' | 'is_empty' | 'is_not_empty'
+  value: string
+}
+
+export interface FormField {
+  id: string
+  type: FormFieldType
+  label: string
+  placeholder?: string
+  helpText?: string
+  required: boolean
+  options?: string[]         // for DROPDOWN, MULTI_SELECT, RADIO, CHECKBOX
+  maxRating?: number         // for RATING (default 5)
+  acceptedFiles?: string[]   // for FILE_UPLOAD
+  autoFillKey?: string       // 'student_name' | 'student_id' | 'email' | 'department' | 'faculty_name'
+  condition?: FormCondition  // show this field only if condition is true
+  width?: 'full' | 'half'    // layout width
+}
+
+export interface FormSettings {
+  oneSubmissionPerUser: boolean
+  allowAnonymous: boolean
+  deadlineDate?: string
+  autoCloseOnDeadline: boolean
+  showProgressBar: boolean
+  successMessage: string
+  routeToDept?: string       // department to notify on submission
+}
+
+export interface InstitutionalForm {
+  id: string
+  title: string
+  description?: string
+  department: string
+  createdBy: string
+  createdByName: string
+  status: FormStatus
+  visibility: FormVisibility
+  visibilityDepts?: string[]  // for DEPARTMENT_ONLY / CUSTOM
+  fields: FormField[]
+  settings: FormSettings
+  category: string            // 'Request' | 'Survey' | 'Evaluation' | 'Registration' | 'Feedback' | 'Other'
+  tags?: string[]
+  submissionCount: number
+  schoolId: string
+  createdAt: string
+  updatedAt: string
+  publishedAt?: string
+  closedAt?: string
+}
+
+export interface FormSubmission {
+  id: string
+  formId: string
+  formTitle: string
+  submittedBy: string
+  submittedByName: string
+  submittedByRole: string
+  responses: Record<string, string | string[] | number>
+  status: FormSubmissionStatus
+  notes?: string
+  schoolId: string
+  submittedAt: string
+  reviewedAt?: string
+  reviewedBy?: string
 }

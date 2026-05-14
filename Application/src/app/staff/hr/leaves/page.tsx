@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Calendar, CheckCircle, XCircle, Clock, AlertCircle, Filter, Search, Plus, X } from 'lucide-react'
 import { MOCK_HR_LEAVES, MOCK_HR_EMPLOYEES } from '@/lib/mock-data'
 import { SectionTitle } from '@/components/ui/Card'
+import { useConfirm } from '@/components/shared/ConfirmDialog'
 import { cn, formatDate, initials } from '@/lib/utils'
 import type { HRLeaveRequest, HRLeaveType, HRLeaveStatus } from '@/types'
 
@@ -22,6 +23,7 @@ const STATUS_MAP: Record<HRLeaveStatus, { label: string; cls: string; icon: Reac
 }
 
 export default function LeavesPage() {
+  const confirm = useConfirm()
   const [leaves, setLeaves] = useState<HRLeaveRequest[]>(MOCK_HR_LEAVES)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'ALL' | HRLeaveStatus>('ALL')
@@ -46,7 +48,18 @@ export default function LeavesPage() {
   const approved = leaves.filter((l) => l.status === 'APPROVED')
   const rejected = leaves.filter((l) => l.status === 'REJECTED')
 
-  function approveLeave(id: string) {
+  async function approveLeave(id: string) {
+    const leave = leaves.find((l) => l.id === id)
+    const employeeName = leave?.employeeName ?? ''
+    const totalDays = leave?.totalDays ?? 0
+    const leaveType = leave ? LEAVE_TYPE_MAP[leave.leaveType].label : ''
+    const ok = await confirm({
+      title: 'Approve Leave Request?',
+      message: `Approve ${totalDays}-day ${leaveType} leave for ${employeeName}?`,
+      variant: 'success',
+      confirmLabel: 'Approve',
+    })
+    if (!ok) return
     const idx = MOCK_HR_LEAVES.findIndex((l) => l.id === id)
     if (idx >= 0) {
       MOCK_HR_LEAVES[idx].status = 'APPROVED'
@@ -57,8 +70,15 @@ export default function LeavesPage() {
     setSelectedLeave(null)
   }
 
-  function rejectLeave(id: string) {
+  async function rejectLeave(id: string) {
     if (!rejectReason.trim()) return
+    const ok = await confirm({
+      title: 'Reject Leave Request?',
+      message: 'The employee will be notified of the rejection.',
+      variant: 'danger',
+      confirmLabel: 'Reject',
+    })
+    if (!ok) return
     const idx = MOCK_HR_LEAVES.findIndex((l) => l.id === id)
     if (idx >= 0) {
       MOCK_HR_LEAVES[idx].status = 'REJECTED'

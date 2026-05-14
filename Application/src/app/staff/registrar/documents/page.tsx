@@ -31,11 +31,15 @@ interface PdfFieldOverlay {
   x: number; y: number           // % from top-left of page container
   width: number; height: number  // % of container
   fontSize: number
+  fontFamily?: string   // 'Helvetica' | 'Times' | 'Courier' | custom font name
   bold: boolean
+  italic?: boolean
   color: string
   align: 'left' | 'center' | 'right'
-  tableType?: 'subjects' | 'current_subjects' | 'completed_subjects'
-  tableColumns?: string[]
+  tableRows?: number      // for static grid table
+  tableCols?: number      // for static grid table
+  staticValue?: string    // for number / date fields — user-entered value
+  imageDataUrl?: string   // for image fields — base64 data URL
 }
 
 interface DocTemplate {
@@ -468,66 +472,153 @@ function detectPlaceholders(body: string): string[] {
 // ── PDF overlay generation (uses pdf-lib) ─────────────────────────────────────
 
 async function generatePdfWithOverlays(
-  pdfUrl: string, overlays: PdfFieldOverlay[], student: Student
+  pdfUrl: string, overlays: PdfFieldOverlay[], student: Student,
+  customFontDefs: CustomFontDef[] = []
 ): Promise<string> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const pdfLib = await import('pdf-lib') as any
+  const pdfLib   = await import('pdf-lib') as any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fontkit  = (await import('@pdf-lib/fontkit')) as any
   const resp  = await fetch(pdfUrl)
   const bytes = await resp.arrayBuffer()
   const pdfDoc = await pdfLib.PDFDocument.load(bytes)
   const page   = pdfDoc.getPages()[0]
   const { width, height } = page.getSize()
-  const helvetica     = await pdfDoc.embedFont(pdfLib.StandardFonts.Helvetica)
-  const helveticaBold = await pdfDoc.embedFont(pdfLib.StandardFonts.HelveticaBold)
+  // ── Embed standard fonts FIRST (must happen before registerFontkit) ──────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  type FontSet = { normal: any; bold: any; italic: any; boldItalic: any }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const FONTS: Record<string, FontSet> = {}
+
+  const SF = pdfLib.StandardFonts
+  FONTS['Helvetica'] = {
+    normal:     await pdfDoc.embedFont(SF.Helvetica),
+    bold:       await pdfDoc.embedFont(SF.HelveticaBold),
+    italic:     await pdfDoc.embedFont(SF.HelveticaOblique),
+    boldItalic: await pdfDoc.embedFont(SF.HelveticaBoldOblique),
+  }
+  FONTS['Times'] = {
+    normal:     await pdfDoc.embedFont(SF.TimesRoman),
+    bold:       await pdfDoc.embedFont(SF.TimesRomanBold),
+    italic:     await pdfDoc.embedFont(SF.TimesRomanItalic),
+    boldItalic: await pdfDoc.embedFont(SF.TimesRomanBoldItalic),
+  }
+  FONTS['Courier'] = {
+    normal:     await pdfDoc.embedFont(SF.Courier),
+    bold:       await pdfDoc.embedFont(SF.CourierBold),
+    italic:     await pdfDoc.embedFont(SF.CourierOblique),
+    boldItalic: await pdfDoc.embedFont(SF.CourierBoldOblique),
+  }
+
+  // ── Register fontkit AFTER standard fonts (critical order) ───────────────────
+  pdfDoc.registerFontkit(fontkit.default ?? fontkit)
+
+  // ── Embed custom / Google Fonts ───────────────────────────────────────────────
+  for (const ov of overlays) {
+    const fid = ov.fontFamily ?? 'Helvetica'
+    if (FONTS[fid]) continue
+    try {
+      const customDef = customFontDefs.find(f => f.name === fid)
+      if (customDef) {
+        const emb = await pdfDoc.embedFont(customDef.data, { subset: true })
+        FONTS[fid] = { normal: emb, bold: emb, italic: emb, boldItalic: emb }
+        continue
+      }
+      const preset = BUILTIN_FONT_PRESETS.find(p => p.id === fid)
+      if (preset?.gfamily) {
+        const buf = await fetchGoogleFontBytes(preset.gfamily)
+        if (buf) {
+          const emb = await pdfDoc.embedFont(buf, { subset: true })
+          FONTS[fid] = { normal: emb, bold: emb, italic: emb, boldItalic: emb }
+        }
+      }
+    } catch { /* fall back to Helvetica below */ }
+  }
 
   for (const ov of overlays) {
     if (ov.type === 'table') {
-      // Draw dynamic subject table
-      const rows = getLoopRows(student.id, ov.tableType ?? 'subjects')
-      const cols = ov.tableColumns ?? ['subject_code','subject_name','units','grade','remarks']
-      const colLabels: Record<string,string> = {
-        subject_code:'Code', subject_name:'Subject Name', units:'Units',
-        grade:'Grade', grade_letter:'Rating', remarks:'Remarks', semester_name:'Semester', ay:'A.Y.',
-      }
-      const tX = (ov.x / 100) * width
+      // Draw static grid table (rows × cols)
+      const rows = Math.max(1, ov.tableRows ?? 3)
+      const cols = Math.max(1, ov.tableCols ?? 5)
+      const tX = (ov.x      / 100) * width
       const tY = height - (ov.y / 100) * height
-      const tW = (ov.width / 100) * width
-      const rH = 14; const colW = tW / cols.length
-      // header
-      page.drawRectangle({ x:tX, y:tY-rH, width:tW, height:rH, color:pdfLib.rgb(0.10,0.29,0.54) })
-      cols.forEach((k,i) => {
-        page.drawText(colLabels[k]??k, { x:tX+i*colW+3, y:tY-rH+3, size:7, font:helveticaBold, color:pdfLib.rgb(1,1,1) })
-      })
-      // data rows
-      rows.forEach((r,ri) => {
-        const rY = tY - rH * (ri + 2)
-        const bg = ri % 2 === 0 ? pdfLib.rgb(0.98,0.98,0.98) : pdfLib.rgb(1,1,1)
-        page.drawRectangle({ x:tX, y:rY, width:tW, height:rH, color:bg })
-        cols.forEach((k,i) => {
-          const rr = r as unknown as Record<string,unknown>
-          const val = String(rr[k] ?? '')
-          page.drawText(val.slice(0,20), { x:tX+i*colW+3, y:rY+3, size:7, font:helvetica, color:pdfLib.rgb(0,0,0), maxWidth:colW-6 })
-          page.drawLine({ start:{x:tX+i*colW,y:rY}, end:{x:tX+i*colW,y:rY+rH}, thickness:0.3, color:pdfLib.rgb(0.85,0.85,0.85) })
-        })
-        page.drawLine({ start:{x:tX,y:rY}, end:{x:tX+tW,y:rY}, thickness:0.3, color:pdfLib.rgb(0.85,0.85,0.85) })
-      })
-      page.drawRectangle({ x:tX, y:tY-rH*(rows.length+1), width:tW, height:rH*(rows.length+1), borderColor:pdfLib.rgb(0.7,0.7,0.7), borderWidth:0.5, color:pdfLib.rgb(1,1,1,0) })
+      const tW = (ov.width  / 100) * width
+      const tH = (ov.height / 100) * height
+      const cW = tW / cols
+      const rH = tH / rows
+      const lineColor = pdfLib.rgb(0, 0, 0)
+      // horizontal lines
+      for (let r = 0; r <= rows; r++) {
+        const ly = tY - r * rH
+        page.drawLine({ start:{x:tX,y:ly}, end:{x:tX+tW,y:ly}, thickness:0.5, color:lineColor })
+      }
+      // vertical lines
+      for (let c = 0; c <= cols; c++) {
+        const lx = tX + c * cW
+        page.drawLine({ start:{x:lx,y:tY}, end:{x:lx,y:tY-tH}, thickness:0.5, color:lineColor })
+      }
     } else if (ov.type === 'image') {
-      // Image overlay — student photo placeholder (skip if no URL)
+      if (!ov.imageDataUrl) continue
+      try {
+        const imgResp  = await fetch(ov.imageDataUrl)
+        const imgBytes = await imgResp.arrayBuffer()
+        const isJpeg   = ov.imageDataUrl.startsWith('data:image/jpeg') || ov.imageDataUrl.startsWith('data:image/jpg')
+        const embImg   = isJpeg ? await pdfDoc.embedJpg(imgBytes) : await pdfDoc.embedPng(imgBytes)
+        const ix = (ov.x / 100) * width
+        const iy = height - (ov.y / 100) * height - (ov.height / 100) * height
+        const iw = (ov.width  / 100) * width
+        const ih = (ov.height / 100) * height
+        page.drawImage(embImg, { x: ix, y: iy, width: iw, height: ih })
+      } catch { /* skip if image fails to embed */ }
     } else {
-      if (!ov.fieldKey) continue
-      const val = getSimpleValue(ov.fieldKey, student)
+      const val = (ov.type === 'number' || ov.type === 'date')
+        ? (ov.staticValue || '')
+        : (ov.fieldKey ? getSimpleValue(ov.fieldKey, student) : '')
       if (!val || val.startsWith('{{')) continue
-      const font = ov.bold ? helveticaBold : helvetica
-      const sz   = ov.fontSize || 11
-      const px   = (ov.x / 100) * width
-      const py   = height - (ov.y / 100) * height - sz * 1.2
-      // parse hex color
+      // Resolve font — fall back to Helvetica if unknown family
+      const family = FONTS[ov.fontFamily ?? 'Helvetica'] ?? FONTS['Helvetica']
+      if (!family) continue   // should never happen but guard anyway
+      const font = ov.bold && ov.italic ? family.boldItalic
+        : ov.bold   ? family.bold
+        : ov.italic ? family.italic
+        : family.normal
+      if (!font) continue
+      const fieldLeft = (ov.x      / 100) * width
+      const fieldW    = (ov.width  / 100) * width
+      const fieldTopY = height - (ov.y     / 100) * height   // PDF y=0 is bottom
+      const fieldH    = (ov.height / 100) * height
+
+      // ── Auto-fit: shrink until text fits field on ONE line ──────────────────
+      let sz = ov.fontSize || 11
+      const PADDING = 0.97   // 3% safety margin to prevent micro-overflow wrapping
+
+      // 1. Cap by field height (cap-height ≈ 70% of pt size)
+      sz = Math.min(sz, fieldH * 0.82)
+
+      // 2. Iteratively shrink until text fits field width (no word-wrap)
+      let textWidth = font.widthOfTextAtSize(val, sz)
+      if (textWidth > fieldW * PADDING) {
+        sz = sz * (fieldW * PADDING / textWidth)
+        sz = Math.max(4, sz)
+        textWidth = font.widthOfTextAtSize(val, sz)
+      }
+
+      // 3. Vertically center
+      const py = Math.max(4, fieldTopY - fieldH / 2 - sz * 0.3)
+
+      // 4. Horizontal alignment
+      const px = ov.align === 'center' ? fieldLeft + (fieldW - textWidth) / 2
+               : ov.align === 'right'  ? fieldLeft +  fieldW - textWidth
+               : fieldLeft
+
+      // 5. Parse hex color
       const hex = (ov.color || '#000000').replace('#','')
-      const r = parseInt(hex.slice(0,2),16)/255
-      const g = parseInt(hex.slice(2,4),16)/255
-      const b = parseInt(hex.slice(4,6),16)/255
-      page.drawText(val, { x:px, y:Math.max(4,py), size:sz, font, color:pdfLib.rgb(r,g,b), maxWidth:(ov.width/100)*width })
+      const cr = parseInt(hex.slice(0,2),16)/255
+      const cg = parseInt(hex.slice(2,4),16)/255
+      const cb = parseInt(hex.slice(4,6),16)/255
+
+      // No maxWidth — prevents pdf-lib word-wrap; auto-fit guarantees it fits
+      page.drawText(val, { x: Math.max(0, px), y: py, size: sz, font, color: pdfLib.rgb(cr,cg,cb) })
     }
   }
 
@@ -1404,6 +1495,59 @@ function TemplateEditor({ template, onBack, onSaved }: {
 }
 
 
+// ── Custom font registry (session-persistent) ─────────────────────────────────
+
+interface CustomFontDef {
+  id: string
+  name: string
+  data: ArrayBuffer
+  cssUrl: string   // blob URL for @font-face
+}
+
+const CUSTOM_FONT_STORE: CustomFontDef[] = []
+
+// Built-in font presets — standard PDF fonts + Google Fonts (fetched at generation time)
+const BUILTIN_FONT_PRESETS = [
+  { id:'Helvetica',    name:'Helvetica',          css:'Helvetica,Arial,sans-serif',            gfamily: null },
+  { id:'Times',        name:'Times Roman',         css:"'Times New Roman',serif",               gfamily: null },
+  { id:'Courier',      name:'Courier',             css:"'Courier New',monospace",               gfamily: null },
+  { id:'Cinzel',       name:'Cinzel',              css:"'Cinzel',serif",                        gfamily:'Cinzel' },
+  { id:'Playfair',     name:'Playfair Display',    css:"'Playfair Display',serif",              gfamily:'Playfair+Display' },
+  { id:'Lato',         name:'Lato',                css:"'Lato',sans-serif",                     gfamily:'Lato' },
+  { id:'Montserrat',   name:'Montserrat',          css:"'Montserrat',sans-serif",               gfamily:'Montserrat' },
+  { id:'GreatVibes',   name:'Great Vibes',         css:"'Great Vibes',cursive",                 gfamily:'Great+Vibes' },
+  { id:'DancingScript',name:'Dancing Script',      css:"'Dancing Script',cursive",              gfamily:'Dancing+Script' },
+  { id:'EBGaramond',   name:'EB Garamond',         css:"'EB Garamond',serif",                   gfamily:'EB+Garamond' },
+]
+
+function getFontCss(fontId: string): string {
+  const preset = BUILTIN_FONT_PRESETS.find(f => f.id === fontId)
+  if (preset) return preset.css
+  const custom = CUSTOM_FONT_STORE.find(f => f.name === fontId)
+  return custom ? `'${custom.name}',sans-serif` : 'Helvetica,Arial,sans-serif'
+}
+
+// Cache fetched Google Font bytes to avoid re-fetching
+const GF_CACHE: Record<string, ArrayBuffer> = {}
+
+async function fetchGoogleFontBytes(family: string): Promise<ArrayBuffer | null> {
+  if (GF_CACHE[family]) return GF_CACHE[family]
+  try {
+    // Use Google Fonts CSS2 API to get woff2 URL, then fetch the actual font file
+    const cssRes = await fetch(`https://fonts.googleapis.com/css2?family=${family}:wght@400`, {
+      headers: { 'User-Agent': 'Mozilla/5.0' }  // request woff2
+    })
+    const css = await cssRes.text()
+    // Extract first src: url(...) from CSS
+    const match = css.match(/src:\s*url\(([^)]+)\)/)
+    if (!match) return null
+    const fontRes = await fetch(match[1])
+    const buf = await fontRes.arrayBuffer()
+    GF_CACHE[family] = buf
+    return buf
+  } catch { return null }
+}
+
 // ── PDF Overlay Editor ────────────────────────────────────────────────────────
 
 type PdfTool = 'select' | 'text' | 'number' | 'date' | 'image' | 'table'
@@ -1437,12 +1581,60 @@ function PdfOverlayEditor({ template, onBack, onSaved }: {
   const [saved,    setSaved]  = useState(false)
   const [fSearch,  setFSearch] = useState('')
   const [prevStudent, setPrevStu]  = useState<Student|null>(MOCK_STUDENTS[0] ?? null)
-  const [previewUrl,  setPrevUrl]  = useState<string|null>(null)
-  const [showPreview, setShowPrev] = useState(false)
-  const [generating,  setGen]      = useState(false)
+  const [previewUrl,  setPrevUrl]     = useState<string|null>(null)
+  const [previewImgs, setPreviewImgs] = useState<string[]>([])
+  const [showPreview, setShowPrev]    = useState(false)
+  const [generating,  setGen]         = useState(false)
+  const [stuSearch,   setStuSearch]  = useState('')
+  const [stuIdx,      setStuIdx]     = useState(0)
+  const [showStuSearch, setShowStuSearch] = useState(false)
+  const stuSearchRef = useRef<HTMLInputElement>(null)
+  const [customFonts, setCustomFonts] = useState<CustomFontDef[]>(CUSTOM_FONT_STORE)
+  const fontImportRef = useRef<HTMLInputElement>(null)
+
+  // Inject Google Fonts + custom @font-face CSS into document head once
+  useEffect(() => {
+    const families = BUILTIN_FONT_PRESETS
+      .filter(f => f.gfamily)
+      .map(f => f.gfamily!)
+      .join('&family=')
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = `https://fonts.googleapis.com/css2?family=${families}&display=swap`
+    document.head.appendChild(link)
+    return () => { try { document.head.removeChild(link) } catch{} }
+  }, [])
+
+  function handleFontImport(file: File) {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const data = e.target?.result as ArrayBuffer
+      const blobUrl = URL.createObjectURL(new Blob([data]))
+      const name = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g,' ')
+        .replace(/\b\w/g, c => c.toUpperCase())
+      const def: CustomFontDef = { id: `cf_${Date.now()}`, name, data, cssUrl: blobUrl }
+      CUSTOM_FONT_STORE.push(def)
+      // Inject @font-face
+      const style = document.createElement('style')
+      style.textContent = `@font-face { font-family: '${name}'; src: url('${blobUrl}'); }`
+      document.head.appendChild(style)
+      setCustomFonts([...CUSTOM_FONT_STORE])
+    }
+    reader.readAsArrayBuffer(file)
+  }
+  const filteredStu = useMemo(() => {
+    const q = stuSearch.toLowerCase().trim()
+    if (!q) return MOCK_STUDENTS
+    return MOCK_STUDENTS.filter(s =>
+      `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
+      s.studentId.toLowerCase().includes(q)
+    )
+  }, [stuSearch])
   const [tableModal,  setTableModal]   = useState(false)
-  const [tableColSel, setTableColSel]  = useState<string[]>(TABLE_COLS_DEFAULT)
-  const [tableLoopType,setTableLoopType] = useState<'subjects'|'current_subjects'|'completed_subjects'>('subjects')
+  const [tableRowsIn, setTableRowsIn]  = useState(3)
+  const [tableColsIn, setTableColsIn]  = useState(5)
+  // Guide lines: which snap lines are active during drag
+  const [activeGuides, setGuides] = useState<{ x: number|null; y: number|null }>({ x: null, y: null })
 
   // ── pdfjs canvas render — eliminates browser PDF-viewer chrome so overlay % coords align exactly ──
   const [pdfDataUrl,  setPdfDataUrl]  = useState<string|null>(null)
@@ -1452,7 +1644,9 @@ function PdfOverlayEditor({ template, onBack, onSaved }: {
   const histRef    = useRef<PdfFieldOverlay[][]>([[...(template.pdfOverlays ?? [])]])
   const histIdx    = useRef(0)
   const clipRef    = useRef<PdfFieldOverlay|null>(null)
-  const dragRef    = useRef<{id:string;mode:'move'|'resize';sx:number;sy:number;ox:number;oy:number;ow:number;oh:number}|null>(null)
+  const dragRef        = useRef<{id:string;mode:'move'|'resize';sx:number;sy:number;ox:number;oy:number;ow:number;oh:number}|null>(null)
+  const didDragRef     = useRef(false)   // true if mouse moved during drag
+  const fieldDownRef   = useRef(false)   // true if the last mousedown was on a field (suppresses canvas onClick)
   const handlersRef = useRef({ undo:()=>{}, redo:()=>{}, cut:()=>{}, copy:()=>{}, paste:()=>{}, del:()=>{} })
 
   function pushH(ovs: PdfFieldOverlay[]) {
@@ -1485,7 +1679,7 @@ function PdfOverlayEditor({ template, onBack, onSaved }: {
   // keep handlersRef fresh every render
   handlersRef.current = { undo, redo, cut, copy, paste, del:delSel }
 
-  // ── Keyboard shortcuts (Ctrl+Z/Y/X/C/V/A, Delete) ──
+  // ── Keyboard shortcuts (Ctrl+Z/Y/X/C/V/A, Delete, Arrow nudge) ──
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const target = e.target as HTMLElement
@@ -1504,6 +1698,17 @@ function PdfOverlayEditor({ template, onBack, onSaved }: {
       }
       if ((e.key==='Delete'||e.key==='Backspace') && selected) { e.preventDefault(); h.del() }
       if (e.key==='Escape') setSel(null)
+      // Arrow nudge — 1% step, Shift = 0.1%
+      if (selected && ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) {
+        e.preventDefault()
+        const step = e.shiftKey ? 0.1 : 1
+        const dx = e.key==='ArrowLeft' ? -step : e.key==='ArrowRight' ? step : 0
+        const dy = e.key==='ArrowUp'   ? -step : e.key==='ArrowDown'  ? step : 0
+        const cur = histRef.current[histIdx.current] ?? []
+        commit(cur.map((o: PdfFieldOverlay) =>
+          o.id===selected ? { ...o, x: Math.max(0,Math.min(95,o.x+dx)), y: Math.max(0,Math.min(95,o.y+dy)) } : o
+        ))
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -1517,9 +1722,7 @@ function PdfOverlayEditor({ template, onBack, onSaved }: {
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const pdfjs = await import('pdfjs-dist') as any
-        if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-          pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`
-        }
+        pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
         const resp  = await fetch(template.uploadedPdfUrl!)
         const bytes = await resp.arrayBuffer()
         const pdf   = await pdfjs.getDocument({ data: bytes }).promise
@@ -1539,6 +1742,13 @@ function PdfOverlayEditor({ template, onBack, onSaved }: {
     })()
     return () => { cancelled = true }
   }, [template.uploadedPdfUrl])
+
+  // Sync prevStudent with filtered navigation
+  useEffect(() => { setStuIdx(0) }, [stuSearch])
+  useEffect(() => {
+    const s = filteredStu[stuIdx]
+    if (s) setPrevStu(s)
+  }, [stuIdx, filteredStu])
 
   function pct(e: {clientX:number;clientY:number}) {
     if (!containerRef.current) return { x:0, y:0 }
@@ -1560,6 +1770,9 @@ function PdfOverlayEditor({ template, onBack, onSaved }: {
   }
 
   function handleCanvasClick(e: React.MouseEvent<HTMLDivElement>) {
+    // Suppress if the originating mousedown was on a field (regardless of movement)
+    if (fieldDownRef.current) { fieldDownRef.current = false; didDragRef.current = false; return }
+    if (didDragRef.current)   { didDragRef.current = false; return }
     if (tool === 'select') { setSel(null); return }
     if (tool === 'table') { setTableModal(true); return }
     const { x, y } = pct(e)
@@ -1568,24 +1781,52 @@ function PdfOverlayEditor({ template, onBack, onSaved }: {
 
   function handleFieldMouseDown(e: React.MouseEvent, id: string, mode: 'move'|'resize') {
     e.stopPropagation()
+    fieldDownRef.current = true   // mark: this click originated on a field
     setSel(id)
+    didDragRef.current = false
     const ov = overlays.find(o => o.id===id)!
     dragRef.current = { id, mode, sx:e.clientX, sy:e.clientY, ox:ov.x, oy:ov.y, ow:ov.width, oh:ov.height }
   }
 
+  const SNAP_THRESHOLD = 1.5   // % — snap when field center within 1.5% of guide
+
   function handleCanvasMouseMove(e: React.MouseEvent<HTMLDivElement>) {
     const d = dragRef.current; if (!d || !containerRef.current) return
     const r = containerRef.current.getBoundingClientRect()
-    const dx = ((e.clientX - d.sx) / r.width) * 100
+    const dx = ((e.clientX - d.sx) / r.width)  * 100
     const dy = ((e.clientY - d.sy) / r.height) * 100
+    if (Math.abs(e.clientX - d.sx) > 2 || Math.abs(e.clientY - d.sy) > 2) didDragRef.current = true
+
     if (d.mode === 'move') {
-      setOvs(p => p.map(o => o.id===d.id ? {...o, x:Math.max(0,Math.min(96,d.ox+dx)), y:Math.max(0,Math.min(96,d.oy+dy))} : o))
+      const ov = overlays.find(o => o.id === d.id)
+      if (!ov) return
+      let nx = Math.max(0, Math.min(96, d.ox + dx))
+      let ny = Math.max(0, Math.min(96, d.oy + dy))
+
+      // Snap guides: canvas center (50%), left/right edges (0/100), top/bottom (0/100)
+      const SNAPS_X = [0, 50 - ov.width / 2, 100 - ov.width]   // left edge, center, right edge
+      const SNAPS_Y = [0, 50 - ov.height / 2, 100 - ov.height]
+
+      let guideX: number | null = null
+      let guideY: number | null = null
+
+      for (const snap of SNAPS_X) {
+        if (Math.abs(nx - snap) < SNAP_THRESHOLD) { nx = snap; guideX = snap + ov.width / 2; break }
+      }
+      for (const snap of SNAPS_Y) {
+        if (Math.abs(ny - snap) < SNAP_THRESHOLD) { ny = snap; guideY = snap + ov.height / 2; break }
+      }
+
+      setGuides({ x: guideX, y: guideY })
+      setOvs(p => p.map(o => o.id === d.id ? { ...o, x: nx, y: ny } : o))
     } else {
-      setOvs(p => p.map(o => o.id===d.id ? {...o, width:Math.max(5,d.ow+dx), height:Math.max(1.5,d.oh+dy)} : o))
+      setGuides({ x: null, y: null })
+      setOvs(p => p.map(o => o.id === d.id ? { ...o, width: Math.max(5, d.ow + dx), height: Math.max(1.5, d.oh + dy) } : o))
     }
   }
 
   function handleCanvasMouseUp() {
+    setGuides({ x: null, y: null })
     if (!dragRef.current) return
     pushH(overlays); dragRef.current = null; setDirty(true)
   }
@@ -1600,10 +1841,13 @@ function PdfOverlayEditor({ template, onBack, onSaved }: {
   }
 
   function insertTableOverlay() {
+    const rows = Math.max(1, tableRowsIn)
+    const cols = Math.max(1, tableColsIn)
     const nw: PdfFieldOverlay = {
-      id:`pf_${Date.now()}`, type:'table', fieldKey:'subjects_table', label:'Subjects Table',
-      x:5, y:40, width:90, height:30, fontSize:8, bold:false, color:'#111111', align:'left',
-      tableType:tableLoopType, tableColumns:[...tableColSel],
+      id:`pf_${Date.now()}`, type:'table', fieldKey:'', label:`${rows}×${cols} Table`,
+      x:5, y:40, width:90, height:Math.min(40, rows * 5),
+      fontSize:8, bold:false, color:'#111111', align:'left',
+      tableRows:rows, tableCols:cols,
     }
     commit([...overlays, nw]); setSel(nw.id); setTableModal(false)
   }
@@ -1615,16 +1859,37 @@ function PdfOverlayEditor({ template, onBack, onSaved }: {
 
   async function runPreview() {
     if (!template.uploadedPdfUrl || !prevStudent) return
-    setGen(true); setPrevUrl(null)
+    setGen(true); setPrevUrl(null); setPreviewImgs([])
     try {
-      const url = await generatePdfWithOverlays(template.uploadedPdfUrl, overlays, prevStudent)
-      setPrevUrl(url); setShowPrev(true)
+      const url = await generatePdfWithOverlays(template.uploadedPdfUrl, overlays, prevStudent, CUSTOM_FONT_STORE)
+      setPrevUrl(url)
+      // Render all pages to canvas images so no browser PDF viewer chrome shows
+      try {
+        const pdfjs = await import('pdfjs-dist') as any
+        pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
+        const resp  = await fetch(url)
+        const bytes = await resp.arrayBuffer()
+        const pdf   = await pdfjs.getDocument({ data: bytes }).promise
+        const imgs: string[] = []
+        for (let p = 1; p <= pdf.numPages; p++) {
+          const page = await pdf.getPage(p)
+          const vp1  = page.getViewport({ scale: 1 })
+          const scale = Math.min(2, 1600 / vp1.width)
+          const vp   = page.getViewport({ scale })
+          const canvas = document.createElement('canvas')
+          canvas.width = vp.width; canvas.height = vp.height
+          await page.render({ canvasContext: canvas.getContext('2d')!, viewport: vp }).promise
+          imgs.push(canvas.toDataURL('image/png'))
+        }
+        setPreviewImgs(imgs)
+      } catch { /* fall back to iframe if pdfjs fails */ }
+      setShowPrev(true)
     } catch (err) { alert('Preview failed: ' + String(err)) }
     finally { setGen(false) }
   }
 
   const selOv     = overlays.find(o => o.id===selected) ?? null
-  const unmapped  = overlays.filter(o => o.type!=='table' && o.type!=='image' && !o.fieldKey).length
+  const unmapped  = overlays.filter(o => o.type==='text' && !o.fieldKey).length
   const isCross   = tool !== 'select' && tool !== 'table'
   const canUndo   = histIdx.current > 0
   const canRedo   = histIdx.current < histRef.current.length - 1
@@ -1670,6 +1935,112 @@ function PdfOverlayEditor({ template, onBack, onSaved }: {
         </div>
       </div>
 
+      {/* ── Format bar (visible when a text field is selected) ── */}
+      {selOv && selOv.type !== 'table' && selOv.type !== 'image' && (
+        <div className="flex items-center gap-1.5 px-4 py-2 border-b border-slate-600 bg-[#161d2b] shrink-0 flex-wrap">
+          {/* Undo / Redo */}
+          <button onClick={undo} disabled={!canUndo}
+            className="flex h-7 w-7 items-center justify-center rounded border border-slate-600 bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-30 transition-colors" title="Undo (Ctrl+Z)">
+            <Undo2 className="h-3.5 w-3.5"/>
+          </button>
+          <button onClick={redo} disabled={!canRedo}
+            className="flex h-7 w-7 items-center justify-center rounded border border-slate-600 bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-30 transition-colors" title="Redo (Ctrl+Y)">
+            <Redo2 className="h-3.5 w-3.5"/>
+          </button>
+          <div className="w-px h-5 bg-slate-600"/>
+          {/* Font size */}
+          <button onClick={() => upd(selOv.id,{fontSize:Math.max(6,(selOv.fontSize??11)-1)})}
+            className="flex h-7 w-7 items-center justify-center rounded border border-slate-600 bg-slate-700 text-slate-200 hover:bg-slate-600 font-bold text-sm">−</button>
+          <input type="number" min={6} max={120} value={selOv.fontSize ?? 11}
+            onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v)) upd(selOv.id,{fontSize:v}) }}
+            onBlur={e => { const v = parseInt(e.target.value)||11; upd(selOv.id,{fontSize:Math.max(6,Math.min(120,v))}) }}
+            className="w-12 h-7 rounded border border-slate-600 bg-slate-700 px-1.5 text-center text-xs text-white focus:outline-none focus:border-brand-400"/>
+          <button onClick={() => upd(selOv.id,{fontSize:Math.min(120,(selOv.fontSize??11)+1)})}
+            className="flex h-7 w-7 items-center justify-center rounded border border-slate-600 bg-slate-700 text-slate-200 hover:bg-slate-600 font-bold text-sm">+</button>
+          <span className="text-[10px] text-slate-500">pt</span>
+          {/* Auto Fit — fill field height, constrained by width for the preview student */}
+          <button
+            onClick={() => {
+              const [pw, ph] = pdfAspect.split('/').map(Number)
+              const fieldHpt = (selOv.height / 100) * (ph || 792)
+              const fieldWpt = (selOv.width  / 100) * (pw || 612)
+              // Start from a size that fills the height, then shrink if name is long
+              let sz = Math.max(6, fieldHpt * 0.82)
+              if (prevStudent) {
+                const name = `${prevStudent.firstName} ${prevStudent.lastName}`
+                // Rough Helvetica width: avg 0.55 em per char
+                const approxW = name.length * sz * 0.55
+                if (approxW > fieldWpt * 0.97) sz = sz * (fieldWpt * 0.97 / approxW)
+              }
+              upd(selOv.id, { fontSize: Math.max(6, Math.round(sz)) })
+            }}
+            className="h-7 px-3 rounded-lg border border-emerald-600 bg-emerald-700/40 text-[11px] font-bold text-emerald-300 hover:bg-emerald-700/70 whitespace-nowrap transition-colors"
+            title="Auto-fit: set font size to fill field without overflowing">
+            ⚡ Auto Fit
+          </button>
+          <div className="w-px h-5 bg-slate-600"/>
+          {/* Font family */}
+          <select
+            value={selOv.fontFamily ?? 'Helvetica'}
+            onChange={e => {
+              if (e.target.value === '__import__') { fontImportRef.current?.click(); return }
+              upd(selOv.id, { fontFamily: e.target.value })
+            }}
+            className="h-7 rounded border border-slate-600 bg-slate-700 px-2 text-xs text-white focus:outline-none focus:border-brand-400 max-w-[160px]"
+          >
+            <optgroup label="── Standard ──">
+              {BUILTIN_FONT_PRESETS.filter(f => !f.gfamily).map(f => (
+                <option key={f.id} value={f.id}>{f.name}</option>
+              ))}
+            </optgroup>
+            <optgroup label="── Google Fonts ──">
+              {BUILTIN_FONT_PRESETS.filter(f => f.gfamily).map(f => (
+                <option key={f.id} value={f.id}>{f.name}</option>
+              ))}
+            </optgroup>
+            {customFonts.length > 0 && (
+              <optgroup label="── Imported ──">
+                {customFonts.map(f => <option key={f.id} value={f.name}>{f.name}</option>)}
+              </optgroup>
+            )}
+            <option value="__import__">＋ Import font (.ttf/.otf)…</option>
+          </select>
+          <input ref={fontImportRef} type="file" accept=".ttf,.otf" className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleFontImport(f); e.target.value='' }}/>
+          <div className="w-px h-5 bg-slate-600"/>
+          {/* Bold */}
+          <button onClick={() => upd(selOv.id,{bold:!selOv.bold})}
+            className={`flex h-7 w-7 items-center justify-center rounded border font-bold text-sm transition-colors ${selOv.bold ? 'border-brand-400 bg-brand-600 text-white' : 'border-slate-600 bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+            title="Bold">B</button>
+          {/* Italic */}
+          <button onClick={() => upd(selOv.id,{italic:!selOv.italic})}
+            className={`flex h-7 w-7 items-center justify-center rounded border italic font-bold text-sm transition-colors ${selOv.italic ? 'border-brand-400 bg-brand-600 text-white' : 'border-slate-600 bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+            title="Italic">I</button>
+          <div className="w-px h-5 bg-slate-600"/>
+          {/* Alignment */}
+          {([['left','⬜▪▪'],['center','▪⬜▪'],['right','▪▪⬜']] as const).map(([a, icon]) => (
+            <button key={a} onClick={() => upd(selOv.id,{align:a})}
+              title={`Align ${a}`}
+              className={`flex h-7 px-2 items-center justify-center rounded border text-xs font-semibold transition-colors ${selOv.align===a ? 'border-brand-400 bg-brand-600 text-white' : 'border-slate-600 bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
+              {a==='left'?<AlignLeft className="h-3.5 w-3.5"/>:a==='center'?<AlignCenter className="h-3.5 w-3.5"/>:<AlignRight className="h-3.5 w-3.5"/>}
+            </button>
+          ))}
+          <div className="w-px h-5 bg-slate-600"/>
+          {/* Color */}
+          <label className="flex h-7 items-center gap-1.5 cursor-pointer rounded border border-slate-600 bg-slate-700 px-2 hover:bg-slate-600 transition-colors" title="Text color">
+            <div className="w-4 h-4 rounded-sm border border-slate-500" style={{ background: selOv.color || '#ffffff' }}/>
+            <span className="text-[10px] text-slate-400">Color</span>
+            <input type="color" value={selOv.color || '#000000'} onChange={e => upd(selOv.id,{color:e.target.value})} className="sr-only"/>
+          </label>
+          <div className="flex-1"/>
+          {/* Delete */}
+          <button onClick={delSel}
+            className="flex h-7 items-center gap-1 px-2 rounded border border-red-800 bg-red-900/40 text-red-400 hover:bg-red-900/70 text-xs font-semibold transition-colors">
+            <Trash2 className="h-3 w-3"/> Delete field
+          </button>
+        </div>
+      )}
+
       {/* ── Tool bar ── */}
       <div className="flex items-center gap-1 px-4 py-2 border-b border-slate-700 bg-[#1e2533] shrink-0">
         <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mr-2">Tools:</span>
@@ -1694,15 +2065,71 @@ function PdfOverlayEditor({ template, onBack, onSaved }: {
       <div className="flex flex-1 overflow-hidden">
 
         {/* ── PDF canvas ── */}
-        <div className="flex-1 overflow-auto p-8" style={{ background:'#2a3040' }}>
-          <div className="max-w-[640px] mx-auto relative shadow-2xl select-none"
-            ref={containerRef}
-            style={{ aspectRatio: pdfAspect, cursor: tool !== 'select' ? 'crosshair' : 'default' }}
-            onClick={handleCanvasClick}
-            onMouseMove={handleCanvasMouseMove}
-            onMouseUp={handleCanvasMouseUp}
-            onMouseLeave={handleCanvasMouseUp}
-          >
+        <div className="flex-1 overflow-auto" style={{ background:'#2a3040', padding:'32px 32px 32px 48px' }}>
+          <div className="max-w-[640px] mx-auto">
+
+            {/* ── Horizontal ruler (top) ── */}
+            <div style={{ display:'flex', marginLeft:20 }}>
+              <div style={{ flex:1, height:18, background:'#1a2236', borderRadius:'4px 4px 0 0', position:'relative', overflow:'visible' }}>
+                {[0,10,20,30,40,50,60,70,80,90,100].map(p => (
+                  <div key={p} style={{ position:'absolute', left:`${p}%`, top:0, bottom:0, display:'flex', flexDirection:'column', alignItems:'center' }}>
+                    <div style={{ width:1, height: p%10===0 ? 8 : 4, background: p===50 ? '#60a5fa' : '#4b5563', marginTop:'auto' }}/>
+                    {p % 10 === 0 && p > 0 && p < 100 && (
+                      <span style={{ position:'absolute', bottom:2, fontSize:7, color: p===50 ? '#60a5fa' : '#6b7280', transform:'translateX(-50%)', lineHeight:1 }}>{p}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ── Canvas row: vertical ruler + PDF ── */}
+            {/* Canvas row — use a ref to measure height so ruler matches exactly */}
+            <div style={{ display:'flex', alignItems:'flex-start' }}>
+              {/* Vertical ruler — height driven by CSS to mirror the canvas */}
+              <div style={{ width:20, background:'#1a2236', borderRadius:'0 0 0 4px', position:'relative', flexShrink:0, alignSelf:'stretch' }}>
+                {[0,10,20,30,40,50,60,70,80,90,100].map(p => (
+                  <div key={p} style={{ position:'absolute', top:`${p}%`, left:0, right:0, display:'flex', alignItems:'center' }}>
+                    <div style={{ height:1, width: p%10===0 ? 8 : 4, background: p===50 ? '#60a5fa' : '#4b5563', marginLeft:'auto' }}/>
+                    {p % 10 === 0 && p > 0 && p < 100 && (
+                      <span style={{ position:'absolute', right:10, fontSize:6, color: p===50 ? '#60a5fa' : '#6b7280', transform:'translateY(-50%)', lineHeight:1 }}>{p}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* ── PDF Canvas — containerRef on the aspect-ratio div for exact coordinate calc ── */}
+              <div
+                ref={containerRef}
+                className="relative shadow-2xl select-none"
+                style={{
+                  flex:1, aspectRatio: pdfAspect,
+                  cursor: tool !== 'select' ? 'crosshair' : 'default',
+                  alignSelf: 'flex-start',   // let aspect-ratio control height, not flex-stretch
+                }}
+                onClick={handleCanvasClick}
+                onMouseMove={handleCanvasMouseMove}
+                onMouseUp={handleCanvasMouseUp}
+                onMouseLeave={handleCanvasMouseUp}
+                onDrop={handleCanvasDrop}
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy' }}
+              >
+
+                {/* Faint center crosshair — always visible */}
+                <div style={{ position:'absolute', left:'50%', top:0, bottom:0, borderLeft:'1px dashed rgba(99,179,237,0.3)', zIndex:8, pointerEvents:'none' }}/>
+                <div style={{ position:'absolute', top:'50%', left:0, right:0, borderTop:'1px dashed rgba(99,179,237,0.3)', zIndex:8, pointerEvents:'none' }}/>
+
+                {/* Active snap guides */}
+                {activeGuides.x !== null && (
+                  <div style={{ position:'absolute', left:`${activeGuides.x}%`, top:0, bottom:0, borderLeft:'2px solid #ef4444', zIndex:12, pointerEvents:'none' }}>
+                    <span style={{ position:'absolute', top:4, left:3, fontSize:9, fontWeight:700, color:'#ef4444', background:'rgba(0,0,0,0.7)', padding:'1px 5px', borderRadius:3 }}>{Math.round(activeGuides.x)}%</span>
+                  </div>
+                )}
+                {activeGuides.y !== null && (
+                  <div style={{ position:'absolute', top:`${activeGuides.y}%`, left:0, right:0, borderTop:'2px solid #ef4444', zIndex:12, pointerEvents:'none' }}>
+                    <span style={{ position:'absolute', left:4, top:2, fontSize:9, fontWeight:700, color:'#ef4444', background:'rgba(0,0,0,0.7)', padding:'1px 5px', borderRadius:3 }}>{Math.round(activeGuides.y)}%</span>
+                  </div>
+                )}
+
             {/* PDF rendered to canvas via pdfjs — no browser viewer chrome, coords align 1:1 */}
             {pdfDataUrl ? (
               <img src={pdfDataUrl} alt="" draggable={false}
@@ -1727,38 +2154,120 @@ function PdfOverlayEditor({ template, onBack, onSaved }: {
                 select:'#1a4a8a', text:'#6d28d9', number:'#1d4ed8', date:'#065f46', image:'#0f766e', table:'#b45309'
               }
               const tc = typeColor[ov.type as PdfTool] || '#1a4a8a'
+              const liveVal = (ov.type === 'number' || ov.type === 'date')
+                ? (ov.staticValue || null)
+                : (ov.fieldKey && prevStudent) ? getSimpleValue(ov.fieldKey, prevStudent) : null
+              // 8 resize handles: corners + edge midpoints
+              const handles = [
+                { cursor:'nw-resize', top:-4, left:-4,  dx:-1, dy:-1 },
+                { cursor:'n-resize',  top:-4, left:'50%' as const, dx:0, dy:-1 },
+                { cursor:'ne-resize', top:-4, right:-4, dx:1, dy:-1 },
+                { cursor:'e-resize',  top:'50%' as const, right:-4, dx:1, dy:0 },
+                { cursor:'se-resize', bottom:-4, right:-4, dx:1, dy:1 },
+                { cursor:'s-resize',  bottom:-4, left:'50%' as const, dx:0, dy:1 },
+                { cursor:'sw-resize', bottom:-4, left:-4,  dx:-1, dy:1 },
+                { cursor:'w-resize',  top:'50%' as const, left:-4, dx:-1, dy:0 },
+              ]
               return (
                 <div key={ov.id}
                   style={{
                     position:'absolute', left:`${ov.x}%`, top:`${ov.y}%`,
                     width:`${ov.width}%`, height:`${ov.height}%`,
-                    border:`2px solid ${isSel ? '#1a4a8a' : tc}`,
-                    background:`${isSel ? 'rgba(26,74,138,0.18)' : `${tc}18`}`,
-                    borderRadius:'3px', cursor:'grab', userSelect:'none',
-                    display:'flex', alignItems:'center', padding:'0 5px',
-                    fontSize:'9px', fontFamily:'system-ui', fontWeight:700,
-                    color:tc, whiteSpace:'nowrap', overflow:'hidden',
-                    boxShadow: isSel ? `0 0 0 2px ${tc}44` : 'none',
+                    border:`2px solid ${isSel ? tc : tc+'99'}`,
+                    background: isSel ? `${tc}22` : `${tc}0d`,
+                    borderRadius:'3px', cursor: isSel ? 'move' : 'grab', userSelect:'none',
+                    boxShadow: isSel ? `0 0 0 3px ${tc}44, 0 2px 8px rgba(0,0,0,0.25)` : `0 1px 3px rgba(0,0,0,0.1)`,
+                    display:'flex', flexDirection:'column', justifyContent:'center', padding:'0 5px', overflow:'hidden',
                   }}
                   onMouseDown={(e) => handleFieldMouseDown(e, ov.id, 'move')}
                   onClick={(e) => { e.stopPropagation(); setSel(ov.id) }}
                 >
-                  <span className="truncate">
-                    {ov.type === 'table' ? '⊞ ' + ov.label
-                      : ov.type === 'image' ? '⬜ ' + ov.label
-                      : ov.fieldKey ? `[${PH_LABEL[ov.fieldKey] ?? ov.fieldKey}]` : `✦ ${ov.label}`}
-                  </span>
-                  {/* Resize handle */}
-                  {isSel && (
-                    <div
-                      style={{ position:'absolute', bottom:-3, right:-3, width:8, height:8, background:tc, borderRadius:'1px', cursor:'se-resize' }}
+
+                  {/* Field label + live value — exact 1:1 scale match with PDF output */}
+                  {(() => {
+                    // containerRef IS the aspect-ratio div — clientWidth/Height = actual canvas px
+                    const [pw, ph] = pdfAspect.split('/').map(Number)
+                    const cw = containerRef.current?.clientWidth  ?? (pw || 792)
+                    const ch = containerRef.current?.clientHeight ?? (ph || 612)
+                    // 1pt in PDF = (cw/pw) px on screen
+                    const scale  = cw / (pw || 792)
+                    const fieldWpx = (ov.width  / 100) * cw
+                    const fieldHpx = (ov.height / 100) * ch
+                    // Mirror the exact PDF auto-fit formula
+                    let displayPx = (ov.fontSize ?? 11) * scale
+                    displayPx = Math.min(displayPx, fieldHpx * 0.82)
+                    const approxTextW = (liveVal?.length ?? 0) * displayPx * 0.55
+                    if (approxTextW > fieldWpx * 0.97 && approxTextW > 0) {
+                      displayPx = Math.max(4, displayPx * (fieldWpx * 0.97 / approxTextW))
+                    }
+                    void ch
+                    return (
+                      <div style={{ display:'flex', flexDirection:'column', gap:'1px', overflow:'hidden' }}>
+                        {ov.type === 'image' && ov.imageDataUrl && (
+                          <img src={ov.imageDataUrl} style={{ width:'100%', height:'100%', objectFit:'contain', position:'absolute', inset:0 }} alt="" />
+                        )}
+                        {!liveVal && !(ov.type === 'image' && ov.imageDataUrl) && (
+                          <span style={{ fontSize:'8px', fontFamily:'system-ui', fontWeight:700, color:`${tc}cc`, lineHeight:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                            {ov.type==='table' ? `⊞ ${ov.tableRows??3}×${ov.tableCols??5} Table` : ov.type==='image' ? `⬜ ${ov.label}` : ov.label}
+                          </span>
+                        )}
+                        {liveVal && (
+                          <span style={{
+                            fontSize:`${Math.max(8, displayPx)}px`,
+                            fontFamily: getFontCss(ov.fontFamily ?? 'Helvetica'),
+                            fontWeight: ov.bold ? 700 : 400,
+                            fontStyle: ov.italic ? 'italic' : 'normal',
+                            color: ov.color || '#1e293b',
+                            textAlign: ov.align || 'left',
+                            overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', lineHeight:1.2,
+                          }}>
+                            {liveVal}
+                          </span>
+                        )}
+                        {ov.type === 'text' && !ov.fieldKey && (
+                          <span style={{ fontSize:'9px', fontFamily:'system-ui', color:`${tc}88`, fontStyle:'italic' }}>unmapped</span>
+                        )}
+                      </div>
+                    )
+                  })()}
+
+                  {/* 8 resize handles */}
+                  {isSel && handles.map((h, i) => (
+                    <div key={i}
+                      style={{
+                        position:'absolute',
+                        ...(h.top    !== undefined && h.top    !== '50%' ? { top:    h.top    } : h.top    === '50%' ? { top:'50%',    transform:'translateY(-50%)' } : {}),
+                        ...(h.bottom !== undefined                        ? { bottom: h.bottom } : {}),
+                        ...(h.left   !== undefined && h.left   !== '50%' ? { left:   h.left   } : h.left   === '50%' ? { left:'50%',   transform:'translateX(-50%)' } : {}),
+                        ...(h.right  !== undefined                        ? { right:  h.right  } : {}),
+                        ...(h.top === '50%' ? { transform:'translateY(-50%)' } : h.left === '50%' ? { transform:'translateX(-50%)' } : {}),
+                        width:8, height:8, background:'white', border:`2px solid ${tc}`,
+                        borderRadius:'2px', cursor:h.cursor, zIndex:5,
+                      }}
                       onMouseDown={(e) => { e.stopPropagation(); handleFieldMouseDown(e, ov.id, 'resize') }}
                     />
-                  )}
+                  ))}
                 </div>
               )
             })}
-          </div>
+
+                {/* Position HUD on selected field */}
+                {selOv && (
+                  <div style={{
+                    position:'absolute',
+                    left:`${selOv.x}%`, top:`calc(${selOv.y}% - 20px)`,
+                    background:'rgba(15,23,42,0.85)', color:'#e2e8f0',
+                    fontSize:9, fontWeight:700, fontFamily:'monospace',
+                    padding:'2px 6px', borderRadius:4, pointerEvents:'none', zIndex:20,
+                    whiteSpace:'nowrap', lineHeight:1.6,
+                  }}>
+                    x:{Math.round(selOv.x)}% y:{Math.round(selOv.y)}% · {Math.round(selOv.width)}×{Math.round(selOv.height)}%
+                  </div>
+                )}
+
+              </div>{/* end containerRef / PDF canvas */}
+            </div>{/* end canvas row */}
+          </div>{/* end outer max-w wrapper */}
 
           {showPreview && previewUrl && (
             <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 backdrop-blur-sm"
@@ -1779,16 +2288,20 @@ function PdfOverlayEditor({ template, onBack, onSaved }: {
                     </button>
                   </div>
                   <div className="flex items-center gap-2">
-                    {previewUrl && (
-                      <a href={previewUrl} download={`${name}.pdf`}
-                        className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-1.5 text-[11px] font-bold text-white hover:bg-brand-600">
-                        <Download className="h-3 w-3"/> Download PDF
-                      </a>
-                    )}
                     <button onClick={() => setShowPrev(false)} className="text-slate-400 hover:text-white"><X className="h-5 w-5"/></button>
                   </div>
                 </div>
-                <iframe src={previewUrl ?? ''} className="flex-1 border-0" title="Preview" style={{ minHeight:'70vh' }} />
+                {previewImgs.length > 0 ? (
+                  <div className="flex-1 overflow-y-auto bg-[#111827] flex flex-col items-center gap-4 p-4">
+                    {previewImgs.map((src, i) => (
+                      <img key={i} src={src} alt={`Page ${i+1}`} className="w-full max-w-3xl rounded shadow-2xl block" />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center">
+                    <RefreshCw className="h-6 w-6 text-slate-400 animate-spin" />
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1802,7 +2315,7 @@ function PdfOverlayEditor({ template, onBack, onSaved }: {
               <div className="px-4 py-3 border-b border-slate-700 shrink-0 flex items-center justify-between">
                 <p className="text-[11px] font-bold text-white flex items-center gap-1.5">
                   <Settings2 className="h-3.5 w-3.5 text-slate-400"/>
-                  {selOv.type === 'table' ? 'Table Field' : 'Field Properties'}
+                  {selOv.type === 'table' ? 'Table Field' : selOv.type === 'image' ? 'Image Field' : selOv.type === 'number' ? 'Number Field' : selOv.type === 'date' ? 'Date Field' : 'Field Properties'}
                 </p>
                 <button onClick={() => delSel()} className="text-red-400 hover:text-red-300 text-[11px] font-semibold flex items-center gap-1">
                   <Trash2 className="h-3 w-3"/> Delete
@@ -1817,8 +2330,8 @@ function PdfOverlayEditor({ template, onBack, onSaved }: {
                     className="w-full h-8 rounded-lg bg-slate-700 border border-slate-600 px-2.5 text-[11px] text-white focus:outline-none focus:border-brand-400" />
                 </div>
 
-                {/* Map to field (not for table) */}
-                {selOv.type !== 'table' && selOv.type !== 'image' && (
+                {/* Text field: map to student field */}
+                {selOv.type === 'text' && (
                   <div className="px-4 py-3 border-b border-slate-700/60">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">Map to Student Field</label>
                     <select value={selOv.fieldKey} onChange={e => upd(selOv.id,{fieldKey:e.target.value})}
@@ -1837,33 +2350,75 @@ function PdfOverlayEditor({ template, onBack, onSaved }: {
                   </div>
                 )}
 
-                {/* Table config */}
+                {/* Number field: static number input */}
+                {selOv.type === 'number' && (
+                  <div className="px-4 py-3 border-b border-slate-700/60">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">Number Value</label>
+                    <input type="number" value={selOv.staticValue ?? ''}
+                      onChange={e => upd(selOv.id,{staticValue:e.target.value})}
+                      placeholder="Enter number…"
+                      className="w-full h-8 rounded-lg bg-slate-700 border border-slate-600 px-2.5 text-[11px] text-white focus:outline-none focus:border-brand-400" />
+                  </div>
+                )}
+
+                {/* Date field: date picker */}
+                {selOv.type === 'date' && (
+                  <div className="px-4 py-3 border-b border-slate-700/60">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">Date Value</label>
+                    <input type="date" value={selOv.staticValue ?? ''}
+                      onChange={e => upd(selOv.id,{staticValue:e.target.value})}
+                      className="w-full h-8 rounded-lg bg-slate-700 border border-slate-600 px-2.5 text-[11px] text-white focus:outline-none focus:border-brand-400 [color-scheme:dark]" />
+                  </div>
+                )}
+
+                {/* Image field: file upload */}
+                {selOv.type === 'image' && (
+                  <div className="px-4 py-3 border-b border-slate-700/60 space-y-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block">Image</label>
+                    {selOv.imageDataUrl && (
+                      <img src={selOv.imageDataUrl} alt="preview"
+                        className="w-full rounded-lg max-h-28 object-contain border border-slate-600 bg-slate-800" />
+                    )}
+                    <input type="file" accept="image/png,image/jpeg,image/jpg,image/webp" id={`img_up_${selOv.id}`}
+                      className="hidden"
+                      onChange={e => {
+                        const f = e.target.files?.[0]
+                        if (!f) return
+                        const reader = new FileReader()
+                        reader.onload = ev => upd(selOv.id,{imageDataUrl: ev.target?.result as string})
+                        reader.readAsDataURL(f)
+                        e.target.value = ''
+                      }} />
+                    <label htmlFor={`img_up_${selOv.id}`}
+                      className="flex items-center justify-center gap-2 w-full h-8 rounded-lg bg-slate-700 border border-dashed border-slate-500 text-[11px] text-slate-300 hover:bg-slate-600 cursor-pointer transition-colors">
+                      <Upload className="h-3.5 w-3.5"/> {selOv.imageDataUrl ? 'Replace Image' : 'Upload Image'}
+                    </label>
+                    {selOv.imageDataUrl && (
+                      <button onClick={() => upd(selOv.id,{imageDataUrl:undefined})}
+                        className="w-full text-[10px] text-red-400 hover:text-red-300 transition-colors">
+                        Remove image
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Table: rows × cols */}
                 {selOv.type === 'table' && (
-                  <div className="px-4 py-3 border-b border-slate-700/60 space-y-3">
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">Data Source</label>
-                      <select value={selOv.tableType ?? 'subjects'} onChange={e => upd(selOv.id,{tableType:e.target.value as 'subjects'})}
-                        className="w-full h-8 rounded-lg bg-slate-700 border border-slate-600 px-2 text-[11px] text-white focus:outline-none">
-                        <option value="subjects">All Subjects (TOR)</option>
-                        <option value="current_subjects">Current Semester</option>
-                        <option value="completed_subjects">Completed Only</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">Columns</label>
-                      <div className="space-y-1">
-                        {Object.entries(TABLE_COL_LABELS).map(([k,l]) => (
-                          <label key={k} className="flex items-center gap-2 cursor-pointer">
-                            <input type="checkbox"
-                              checked={(selOv.tableColumns ?? TABLE_COLS_DEFAULT).includes(k)}
-                              onChange={() => {
-                                const cur = selOv.tableColumns ?? TABLE_COLS_DEFAULT
-                                upd(selOv.id, { tableColumns: cur.includes(k) ? cur.filter(c=>c!==k) : [...cur,k] })
-                              }}
-                              className="accent-brand-400" />
-                            <span className="text-[11px] text-slate-300">{l}</span>
-                          </label>
-                        ))}
+                  <div className="px-4 py-3 border-b border-slate-700/60">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-2">Table Size</label>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <label className="text-[10px] text-slate-500 block mb-1">Rows</label>
+                        <input type="number" min={1} max={50} value={selOv.tableRows ?? 3}
+                          onChange={e => upd(selOv.id,{tableRows:Math.max(1,parseInt(e.target.value)||1)})}
+                          className="w-full h-7 rounded bg-slate-700 border border-slate-600 px-2 text-[11px] text-white text-center focus:outline-none" />
+                      </div>
+                      <span className="text-slate-500 text-sm mt-4">×</span>
+                      <div className="flex-1">
+                        <label className="text-[10px] text-slate-500 block mb-1">Cols</label>
+                        <input type="number" min={1} max={20} value={selOv.tableCols ?? 5}
+                          onChange={e => upd(selOv.id,{tableCols:Math.max(1,parseInt(e.target.value)||1)})}
+                          className="w-full h-7 rounded bg-slate-700 border border-slate-600 px-2 text-[11px] text-white text-center focus:outline-none" />
                       </div>
                     </div>
                   </div>
@@ -1891,15 +2446,48 @@ function PdfOverlayEditor({ template, onBack, onSaved }: {
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-2">Text Style</label>
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
+                        <label className="text-[10px] text-slate-500 w-16">Font</label>
+                        <select value={selOv.fontFamily ?? 'Helvetica'}
+                          onChange={e => {
+                            if (e.target.value === '__import__') { fontImportRef.current?.click(); return }
+                            upd(selOv.id,{fontFamily:e.target.value})
+                          }}
+                          className="flex-1 h-7 rounded bg-slate-700 border border-slate-600 px-1.5 text-[11px] text-white focus:outline-none">
+                          <optgroup label="Standard">
+                            {BUILTIN_FONT_PRESETS.filter(f=>!f.gfamily).map(f=>(
+                              <option key={f.id} value={f.id}>{f.name}</option>
+                            ))}
+                          </optgroup>
+                          <optgroup label="Google Fonts">
+                            {BUILTIN_FONT_PRESETS.filter(f=>f.gfamily).map(f=>(
+                              <option key={f.id} value={f.id}>{f.name}</option>
+                            ))}
+                          </optgroup>
+                          {customFonts.length > 0 && (
+                            <optgroup label="Imported">
+                              {customFonts.map(f=><option key={f.id} value={f.name}>{f.name}</option>)}
+                            </optgroup>
+                          )}
+                          <option value="__import__">＋ Import font…</option>
+                        </select>
+                      </div>
+                      <div className="flex items-center gap-2">
                         <label className="text-[10px] text-slate-500 w-16">Size (pt)</label>
-                        <input type="number" min={6} max={72} value={selOv.fontSize}
-                          onChange={e => upd(selOv.id,{fontSize:parseInt(e.target.value)||11})}
+                        <input type="number" min={6} max={120} value={selOv.fontSize}
+                          onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v)) upd(selOv.id,{fontSize:v}) }}
+                          onBlur={e => { const v = parseInt(e.target.value)||11; upd(selOv.id,{fontSize:Math.max(6,Math.min(120,v))}) }}
                           className="w-16 h-7 rounded bg-slate-700 border border-slate-600 px-2 text-[11px] text-white focus:outline-none" />
                       </div>
                       <div className="flex items-center gap-2">
                         <label className="text-[10px] text-slate-500 w-16">Bold</label>
                         <input type="checkbox" checked={selOv.bold}
                           onChange={e => upd(selOv.id,{bold:e.target.checked})}
+                          className="accent-brand-400" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <label className="text-[10px] text-slate-500 w-16">Italic</label>
+                        <input type="checkbox" checked={!!selOv.italic}
+                          onChange={e => upd(selOv.id,{italic:e.target.checked})}
                           className="accent-brand-400" />
                       </div>
                       <div className="flex items-center gap-2">
@@ -1951,7 +2539,7 @@ function PdfOverlayEditor({ template, onBack, onSaved }: {
                     <div className="flex-1 min-w-0">
                       <p className="text-[11px] font-semibold text-white truncate">{ov.label}</p>
                       <p className="text-[10px] text-slate-500 truncate">
-                        {ov.type==='table' ? (ov.tableType??'subjects').replace('_',' ') : (ov.fieldKey ? (PH_LABEL[ov.fieldKey]??ov.fieldKey) : '⚠ Not mapped')}
+                        {ov.type==='table' ? `${ov.tableRows??3} rows × ${ov.tableCols??5} cols` : (ov.fieldKey ? (PH_LABEL[ov.fieldKey]??ov.fieldKey) : '⚠ Not mapped')}
                       </p>
                     </div>
                     <span className="text-[9px] font-bold uppercase rounded px-1.5 py-0.5 bg-slate-700 text-slate-400 shrink-0">
@@ -1963,10 +2551,44 @@ function PdfOverlayEditor({ template, onBack, onSaved }: {
 
               <div className="border-t border-slate-700 px-4 py-3 bg-[#1e2533] shrink-0 space-y-1.5">
                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Preview</p>
-                <select value={prevStudent?.id??''} onChange={e => setPrevStu(MOCK_STUDENTS.find(s=>s.id===e.target.value)??null)}
-                  className="w-full h-8 rounded-lg bg-slate-700 border border-slate-600 px-2 text-[11px] text-white focus:outline-none">
-                  {MOCK_STUDENTS.map(s=><option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>)}
-                </select>
+
+                {/* Student nav row */}
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setStuIdx(i => Math.max(0, i - 1))} disabled={stuIdx === 0}
+                    className="flex h-8 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-700 border border-slate-600 text-slate-300 hover:bg-slate-600 disabled:opacity-30 transition-colors">
+                    <ChevronLeft className="h-3.5 w-3.5"/>
+                  </button>
+                  <div className="flex-1 min-w-0 rounded-lg bg-slate-700 border border-slate-600 px-2 h-8 flex items-center">
+                    <p className="text-[11px] text-white truncate">
+                      {prevStudent ? `${prevStudent.firstName} ${prevStudent.lastName}` : '—'}
+                    </p>
+                  </div>
+                  <button onClick={() => setStuIdx(i => Math.min(filteredStu.length - 1, i + 1))} disabled={stuIdx >= filteredStu.length - 1}
+                    className="flex h-8 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-700 border border-slate-600 text-slate-300 hover:bg-slate-600 disabled:opacity-30 transition-colors">
+                    <ChevronRight className="h-3.5 w-3.5"/>
+                  </button>
+                  <button onClick={() => { setShowStuSearch(v => !v); setTimeout(() => stuSearchRef.current?.focus(), 50) }}
+                    className={`flex h-8 w-7 shrink-0 items-center justify-center rounded-lg border transition-colors ${showStuSearch ? 'border-emerald-500 bg-emerald-900 text-emerald-300' : 'bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600'}`}>
+                    <Search className="h-3.5 w-3.5"/>
+                  </button>
+                </div>
+
+                {/* Search input */}
+                {showStuSearch && (
+                  <div>
+                    <input
+                      ref={stuSearchRef}
+                      value={stuSearch}
+                      onChange={e => setStuSearch(e.target.value)}
+                      placeholder="Search name or ID…"
+                      className="w-full h-8 rounded-lg bg-slate-700 border border-emerald-600 px-2 text-[11px] text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500"
+                    />
+                    {stuSearch && (
+                      <p className="text-[9px] text-slate-400 mt-0.5">{filteredStu.length} result{filteredStu.length !== 1 ? 's' : ''}</p>
+                    )}
+                  </div>
+                )}
+
                 <button onClick={runPreview} disabled={generating || !template.uploadedPdfUrl}
                   className="w-full h-8 rounded-lg bg-emerald-700 text-[11px] font-bold text-white hover:bg-emerald-600 disabled:opacity-40 flex items-center justify-center gap-1.5">
                   {generating ? <RefreshCw className="h-3.5 w-3.5 animate-spin"/> : <Eye className="h-3.5 w-3.5"/>}
@@ -1982,31 +2604,39 @@ function PdfOverlayEditor({ template, onBack, onSaved }: {
       {tableModal && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60" onClick={() => setTableModal(false)} />
-          <div className="relative z-10 w-[420px] rounded-2xl bg-white shadow-2xl overflow-hidden">
+          <div className="relative z-10 w-80 rounded-2xl bg-white shadow-2xl overflow-hidden">
             <div className="px-5 py-4 bg-amber-50 border-b border-amber-200">
-              <h3 className="text-sm font-bold text-amber-900 flex items-center gap-2"><Table className="h-4 w-4 text-amber-600"/>Insert Dynamic Table</h3>
-              <p className="text-xs text-amber-700 mt-1">This table will auto-fill with student subjects when generating.</p>
+              <h3 className="text-sm font-bold text-amber-900 flex items-center gap-2"><Table className="h-4 w-4 text-amber-600"/>Insert Table</h3>
+              <p className="text-xs text-amber-700 mt-0.5">Set the number of rows and columns.</p>
             </div>
-            <div className="px-5 py-4 border-b border-slate-100">
-              <p className="text-xs font-bold text-slate-700 mb-2">Include:</p>
-              {([{v:'subjects',l:'All Subjects (TOR)'},{v:'current_subjects',l:'Current Semester'},{v:'completed_subjects',l:'Completed Only'}] as const).map(o=>(
-                <label key={o.v} className="flex items-center gap-2 mb-1.5 cursor-pointer">
-                  <input type="radio" name="tlt" value={o.v} checked={tableLoopType===o.v} onChange={()=>setTableLoopType(o.v)} className="accent-amber-600"/>
-                  <span className="text-[11px] font-semibold text-slate-800">{o.l}</span>
-                </label>
-              ))}
-            </div>
-            <div className="px-5 py-4">
-              <p className="text-xs font-bold text-slate-700 mb-2">Columns:</p>
-              <div className="grid grid-cols-2 gap-1.5">
-                {Object.entries(TABLE_COL_LABELS).map(([k,l])=>(
-                  <label key={k} className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={tableColSel.includes(k)}
-                      onChange={()=>setTableColSel(p=>p.includes(k)?p.filter(c=>c!==k):[...p,k])}
-                      className="accent-amber-600"/>
-                    <span className="text-[11px] text-slate-700">{l}</span>
-                  </label>
-                ))}
+            <div className="px-5 py-5 space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <label className="text-[11px] font-bold text-slate-600 block mb-1.5">Rows</label>
+                  <input type="number" min={1} max={50} value={tableRowsIn}
+                    onChange={e => setTableRowsIn(Math.max(1, parseInt(e.target.value)||1))}
+                    className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-900 focus:outline-none focus:border-amber-400 text-center" />
+                </div>
+                <div className="text-lg font-bold text-slate-400 mt-5">×</div>
+                <div className="flex-1">
+                  <label className="text-[11px] font-bold text-slate-600 block mb-1.5">Columns</label>
+                  <input type="number" min={1} max={20} value={tableColsIn}
+                    onChange={e => setTableColsIn(Math.max(1, parseInt(e.target.value)||1))}
+                    className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-900 focus:outline-none focus:border-amber-400 text-center" />
+                </div>
+              </div>
+              {/* Visual grid preview */}
+              <div className="rounded-xl border border-slate-200 p-3 bg-slate-50">
+                <p className="text-[10px] text-slate-400 mb-2 text-center">{tableRowsIn} × {tableColsIn} table</p>
+                <div className="overflow-hidden rounded border border-slate-300"
+                  style={{ display:'grid', gridTemplateColumns:`repeat(${Math.min(tableColsIn,8)}, 1fr)`, gap:0 }}>
+                  {Array.from({ length: Math.min(tableRowsIn, 6) * Math.min(tableColsIn, 8) }).map((_,i) => (
+                    <div key={i} className="border border-slate-200 bg-white" style={{ height:'18px' }} />
+                  ))}
+                </div>
+                {(tableRowsIn > 6 || tableColsIn > 8) && (
+                  <p className="text-[10px] text-slate-400 mt-1.5 text-center">Preview truncated — full table will be placed</p>
+                )}
               </div>
             </div>
             <div className="flex justify-end gap-2 px-5 py-4 border-t border-slate-100 bg-slate-50">
@@ -2555,9 +3185,57 @@ function AutomationEditor({ template, onBack, onSaved, onEditTemplate, onMapFiel
   const [tplType,    setTplType]   = useState(template.type)
   const [isDirty,    setDirty]     = useState(false)
   const [saved,      setSaved]     = useState(false)
-  const [prevStu,    setPrevStu]   = useState<Student|null>(MOCK_STUDENTS[0] ?? null)
   const [prevHtml,   setPrevHtml]  = useState('')
   const [generating, setGen]       = useState(false)
+  const [pdfDataUrl, setPdfDataUrl] = useState<string|null>(null)
+
+  // Student navigation
+  const [stuSearch,  setStuSearch]  = useState('')
+  const [stuIdx,     setStuIdx]     = useState(0)
+  const [showSearch, setShowSearch] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  const filteredStudents = useMemo(() => {
+    const q = stuSearch.toLowerCase().trim()
+    if (!q) return MOCK_STUDENTS
+    return MOCK_STUDENTS.filter(s =>
+      `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
+      s.studentId.toLowerCase().includes(q) ||
+      (s.email ?? '').toLowerCase().includes(q)
+    )
+  }, [stuSearch])
+
+  const prevStu = filteredStudents[stuIdx] ?? filteredStudents[0] ?? null
+
+  function goPrev() { setStuIdx(i => Math.max(0, i - 1)) }
+  function goNext() { setStuIdx(i => Math.min(filteredStudents.length - 1, i + 1)) }
+
+  useEffect(() => { setStuIdx(0) }, [stuSearch])
+
+  // Render PDF to canvas via pdfjs for PDF Overlay templates
+  useEffect(() => {
+    if (!template.isPdfOverlay || !template.uploadedPdfUrl) { setPdfDataUrl(null); return }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const pdfjs = await import('pdfjs-dist') as any
+        pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
+        const resp  = await fetch(template.uploadedPdfUrl!)
+        const bytes = await resp.arrayBuffer()
+        const pdf   = await pdfjs.getDocument({ data: bytes }).promise
+        const page  = await pdf.getPage(1)
+        const vp1   = page.getViewport({ scale: 1 })
+        const scale = Math.min(2, 900 / vp1.width)
+        const vp    = page.getViewport({ scale })
+        const canvas = document.createElement('canvas')
+        canvas.width  = vp.width
+        canvas.height = vp.height
+        await page.render({ canvasContext: canvas.getContext('2d')!, viewport: vp }).promise
+        if (!cancelled) setPdfDataUrl(canvas.toDataURL('image/png'))
+      } catch { /* ignore */ }
+    })()
+    return () => { cancelled = true }
+  }, [template.uploadedPdfUrl, template.isPdfOverlay])
 
   // Auto-refresh preview whenever selected student changes
   useEffect(() => {
@@ -2711,10 +3389,6 @@ function AutomationEditor({ template, onBack, onSaved, onEditTemplate, onMapFiel
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <select value={tplType} onChange={e=>{setTplType(e.target.value as TemplateType);setDirty(true)}}
-                      className="border border-slate-200 rounded px-2 py-2 text-xs text-slate-700 hover:bg-slate-50 focus:outline-none">
-                      {Object.entries(TYPE_LABELS).map(([v,l]) => <option key={v} value={v}>{l}</option>)}
-                    </select>
                     <button onClick={template.isPdfOverlay ? onConfigureOverlay : template.isMapped ? onMapFields : onEditTemplate}
                       className="border border-slate-200 rounded px-4 py-2 text-sm flex items-center gap-1.5 text-brand-950 hover:bg-slate-100 transition-colors">
                       <Edit2 className="h-3.5 w-3.5"/>
@@ -2725,130 +3399,6 @@ function AutomationEditor({ template, onBack, onSaved, onEditTemplate, onMapFiel
               </div>
             </StepCard>
 
-            {STEP_ARROW}
-
-            {/* Step 3: Data Mapping */}
-            <StepCard n={3} title="Data Field Mapping" subtitle="Connect {{placeholders}} in your template to actual student data fields" accent="border-emerald-200">
-              <div className="px-6 py-4 flex items-center justify-between gap-8">
-                <div className="flex flex-grow justify-between gap-6 flex-wrap">
-                  <div>
-                    <p className="text-sm text-slate-500">Data Source</p>
-                    <p className="font-semibold text-slate-900">Student Records</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-500">Template Type</p>
-                    <p className="font-semibold text-slate-900">
-                      {template.isPdfOverlay ? 'PDF Overlay' : template.isMapped ? 'DOCX Mapped' : 'DOCX / HTML'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-500">Fields Detected</p>
-                    <p className="font-semibold text-slate-900">
-                      {template.isPdfOverlay ? overlayCount : template.isMapped ? mappedSpanCount : placeholders.length}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-500">Mapping</p>
-                    <p className="font-semibold">
-                      {template.isPdfOverlay
-                        ? `${(template.pdfOverlays??[]).filter(o=>o.fieldKey).length} / ${overlayCount}`
-                        : template.isMapped
-                        ? `${mappedSpanCount} / ${mappedSpanCount}`
-                        : `${mappedCount} / ${placeholders.length}`}
-                    </p>
-                  </div>
-                </div>
-                <button onClick={() => setMapModal(true)}
-                  className="border border-slate-200 rounded-md px-4 py-2 text-sm hover:bg-slate-100 transition-colors shrink-0 flex items-center gap-1.5">
-                  <Edit2 className="h-3.5 w-3.5"/> Edit
-                </button>
-              </div>
-            </StepCard>
-
-            {STEP_ARROW}
-
-            {/* Step 4: Generation Options */}
-            <StepCard n={4} title="Document Generation Options">
-              <div className="px-6 py-4 flex items-center justify-between gap-8">
-                <div className="flex flex-wrap gap-x-6 gap-y-3 flex-1">
-                  {[
-                    ['Date Format',    genOpts.dateFormat],
-                    ['Locale',         genOpts.locale],
-                    ['PDF Quality',    genOpts.pdfQuality],
-                    ['Format Numbers', genOpts.formatNumbers ? 'Yes' : 'No'],
-                  ].map(([label, val]) => (
-                    <div key={String(label)} className="min-w-[130px]">
-                      <p className="text-sm text-slate-500">{label}</p>
-                      <p className="font-semibold text-slate-900 truncate" title={String(val)}>{val}</p>
-                    </div>
-                  ))}
-                </div>
-                <button onClick={() => setOptModal(true)}
-                  className="border border-slate-200 rounded-md px-4 py-2 text-sm hover:bg-slate-100 transition-colors shrink-0 flex items-center gap-1.5">
-                  <Edit2 className="h-3.5 w-3.5"/> Edit
-                </button>
-              </div>
-            </StepCard>
-
-            {STEP_ARROW}
-
-            {/* Step 5: Actions After Generation */}
-            <StepCard n={5} title="Actions After Document Generation">
-              <div className="flex flex-col grow items-start justify-center p-6 gap-3">
-                {([
-                  { key:'savePDF'         as const, label:'Save PDF',          desc:'Download or print the generated PDF' },
-                  { key:'sendEmail'       as const, label:'Send Email',         desc:'Send document via email after generation' },
-                  { key:'eSignature'      as const, label:'E-Signatures',       desc:'Collect signatures on generated documents' },
-                  { key:'notifyWebhook'   as const, label:'Notify Webhook',     desc:'POST to a webhook URL on document creation' },
-                ] as const).map(act => (
-                  <div key={act.key} className="relative rounded-2xl flex flex-col gap-2 w-full p-4 bg-slate-50 border border-slate-100">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <label className="font-medium text-slate-800 cursor-pointer" htmlFor={`act_${act.key}`}>{act.label}</label>
-                        <span className="text-[11px] text-slate-500">{act.desc}</span>
-                        {(act.key === 'eSignature' || act.key === 'notifyWebhook') && (
-                          <span className="text-[10px] bg-amber-100 text-amber-700 border border-amber-200 rounded-full px-2 py-0.5 font-bold">Future</span>
-                        )}
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input id={`act_${act.key}`} type="checkbox" className="sr-only peer"
-                          checked={postActs[act.key]}
-                          onChange={e => { setPostActs(p=>({...p,[act.key]:e.target.checked})); setDirty(true) }}
-                          disabled={act.key === 'eSignature' || act.key === 'notifyWebhook'}/>
-                        <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 peer-disabled:opacity-50"/>
-                      </label>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </StepCard>
-
-            {STEP_ARROW}
-
-            {/* Step 6: Generate */}
-            <StepCard n={6} title="Generate Document" subtitle="Use this automation to create a document for a specific student" accent="border-brand-200">
-              <div className="bg-white rounded-2xl w-full">
-                <div className="flex flex-col gap-3 p-6">
-                  <div className="rounded-xl bg-brand-50 border border-brand-100 px-4 py-3">
-                    <p className="text-sm font-semibold text-brand-800 mb-1">This automation is ready.</p>
-                    <p className="text-xs text-brand-600">Click the button below to go to the Generate tab and produce a real document for any student using this template.</p>
-                  </div>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <button
-                      onClick={onBack}
-                      className="flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-brand-600 transition-colors shadow-sm"
-                    >
-                      <Zap className="h-4 w-4" />
-                      Go to Generate Tab
-                    </button>
-                    <div className="flex items-center gap-2 text-xs text-slate-400">
-                      <RefreshCw className="h-3.5 w-3.5"/>
-                      <span>Automatic triggers — coming soon</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </StepCard>
           </div>
         </div>
 
@@ -2858,24 +3408,83 @@ function AutomationEditor({ template, onBack, onSaved, onEditTemplate, onMapFiel
             <div className="w-full">
               <div className="bg-white shadow-sm border border-slate-100 flex flex-col grow rounded-2xl overflow-hidden">
 
-                <div className="flex flex-col gap-2 px-4 pt-3 pb-2 border-b border-slate-100">
+                {/* Preview header */}
+                <div className="px-4 pt-3 pb-2 border-b border-slate-100 space-y-2">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-bold text-slate-600 uppercase tracking-wide">Preview Document</p>
-                    {prevHtml && <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1"><CheckCircle2 className="h-3 w-3"/>Live</span>}
+                    <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3"/>Live
+                    </span>
                   </div>
-                  <select value={prevStu?.id ?? ''}
-                    onChange={e => setPrevStu(MOCK_STUDENTS.find(s=>s.id===e.target.value)??null)}
-                    className="w-full border border-slate-200 rounded-lg px-2.5 py-2 text-sm text-slate-700 focus:outline-none focus:border-brand-300 bg-white">
-                    <option value="">— Select a student —</option>
-                    {MOCK_STUDENTS.map(s => <option key={s.id} value={s.id}>{s.firstName} {s.lastName} — {s.studentId}</option>)}
-                  </select>
-                  <p className="text-[10px] text-slate-400 -mt-1">Preview updates automatically when you select a student.</p>
+
+                  {/* Student name + nav */}
+                  <div className="flex items-center gap-1.5">
+                    <button onClick={goPrev} disabled={stuIdx === 0}
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30 transition-colors">
+                      <ChevronLeft className="h-3.5 w-3.5"/>
+                    </button>
+                    <div className="flex-1 min-w-0 rounded-lg border border-slate-200 bg-[#f8fafd] px-2.5 py-1.5">
+                      {prevStu ? (
+                        <p className="text-sm font-semibold text-slate-800 truncate">
+                          {prevStu.firstName} {prevStu.lastName}
+                          <span className="ml-1.5 text-xs text-slate-400 font-normal">— {prevStu.studentId}</span>
+                        </p>
+                      ) : (
+                        <p className="text-xs text-slate-400">No students</p>
+                      )}
+                    </div>
+                    <button onClick={goNext} disabled={stuIdx >= filteredStudents.length - 1}
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30 transition-colors">
+                      <ChevronRight className="h-3.5 w-3.5"/>
+                    </button>
+                    <button onClick={() => { setShowSearch(v=>!v); setTimeout(()=>searchInputRef.current?.focus(),50) }}
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-colors ${showSearch ? 'border-brand-400 bg-brand-50 text-brand-600' : 'border-slate-200 text-slate-500 hover:bg-slate-100'}`}>
+                      <Search className="h-3.5 w-3.5"/>
+                    </button>
+                  </div>
+
+                  {/* Search input */}
+                  {showSearch && (
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400"/>
+                      <input
+                        ref={searchInputRef}
+                        value={stuSearch}
+                        onChange={e => setStuSearch(e.target.value)}
+                        placeholder="Search by name, ID, email…"
+                        className="w-full rounded-lg border border-brand-300 bg-white pl-8 pr-3 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                      />
+                      {filteredStudents.length > 0 && (
+                        <p className="mt-1 text-[10px] text-slate-400">
+                          {stuIdx + 1} of {filteredStudents.length} result{filteredStudents.length !== 1 ? 's' : ''}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <hr className="border-slate-200"/>
 
+                {/* Preview body */}
                 <div className="flex flex-col grow items-center justify-center">
-                  {prevHtml ? (
+                  {template.isPdfOverlay ? (
+                    pdfDataUrl ? (
+                      <div className="w-full overflow-auto max-h-[540px]">
+                        <img src={pdfDataUrl} alt="PDF preview" className="w-full h-auto block"/>
+                      </div>
+                    ) : (
+                      <div className="h-[540px] flex flex-col items-center justify-center gap-3 px-6 text-center">
+                        <FileText className="h-12 w-12 text-slate-200"/>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-600">PDF Overlay Template</p>
+                          <p className="text-xs text-slate-400 mt-1">
+                            {(template.pdfOverlays ?? []).length} field{(template.pdfOverlays ?? []).length !== 1 ? 's' : ''} configured.
+                            {!template.uploadedPdfUrl && ' Upload a PDF in Configure Overlay to preview.'}
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  ) : prevHtml ? (
                     <div className="w-full overflow-auto max-h-[540px] p-3">
                       <div className="transform origin-top-left scale-[0.65] w-[154%]"
                         dangerouslySetInnerHTML={{ __html: prevHtml }}/>
@@ -2884,8 +3493,8 @@ function AutomationEditor({ template, onBack, onSaved, onEditTemplate, onMapFiel
                     <div className="h-[540px] flex flex-col items-center justify-center gap-4 px-6">
                       <FileText className="h-12 w-12 text-slate-300"/>
                       <div className="text-center">
-                        <p className="text-slate-600 font-medium">No preview created yet.</p>
-                        <p className="text-slate-400 text-sm mt-1">Select a student above and click Create Preview.</p>
+                        <p className="text-slate-600 font-medium">No preview yet.</p>
+                        <p className="text-slate-400 text-sm mt-1">Select a student to preview.</p>
                       </div>
                     </div>
                   )}
@@ -3233,33 +3842,6 @@ function TemplatesTab({ onEdit, onMap, onPdfOverlay, onGenerate }: {
         </button>
       </div>
 
-      {/* Engine capability summary — click for help */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {([
-          { key:'smart'      as FeatureKey, color:'violet', label:'Smart Fields',        desc:'{{full_name}}, {{gwa}}, {{student_id}}…' },
-          { key:'showhide'   as FeatureKey, color:'emerald',label:'Show / Hide',         desc:'{{#if is_graduated}}…{{else}}…{{/if}}' },
-          { key:'tables'     as FeatureKey, color:'teal',   label:'Auto Tables',         desc:'data-loop-type="subjects"' },
-          { key:'formatting' as FeatureKey, color:'blue',   label:'Formatting',          desc:'{{name | uppercase | or: "N/A"}}' },
-        ]).map(({ key, color, label, desc }) => {
-          const Icon = FEATURE_HELP[key].icon
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setFeatureHelp(key)}
-              className={`rounded-xl border border-${color}-200 bg-${color}-50 px-3 py-2.5 text-left hover:border-${color}-400 hover:bg-${color}-100 hover:shadow-sm transition-all cursor-pointer group`}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <Icon className={`h-3.5 w-3.5 text-${color}-600 shrink-0`} />
-                <p className={`text-[11px] font-bold text-${color}-800`}>{label}</p>
-                <Info className={`h-3 w-3 text-${color}-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity`} />
-              </div>
-              <code className={`text-[9px] text-${color}-700 font-mono break-all`}>{desc}</code>
-              <p className={`text-[9px] text-${color}-500 mt-1 font-medium`}>Click to learn more →</p>
-            </button>
-          )
-        })}
-      </div>
 
       {/* Feature help modal */}
       {featureHelp && <FeatureHelpModal featureKey={featureHelp} onClose={() => setFeatureHelp(null)} />}
@@ -3341,6 +3923,7 @@ function GenerateTab({ initialTemplate }: { initialTemplate: DocTemplate|null })
   const [pdfUrl, setPdfUrl] = useState<string|null>(null)
   const [genWarnings, setGenWarnings] = useState<ValidationError[]>([])
   const [genLoading, setGenLoading] = useState(false)
+  const [genPdfImgs, setGenPdfImgs] = useState<string[]>([])
 
   useEffect(() => { if (initialTemplate) { setTpl(initialTemplate); setStep(2) } }, [initialTemplate])
 
@@ -3357,8 +3940,28 @@ function GenerateTab({ initialTemplate }: { initialTemplate: DocTemplate|null })
       if (tpl.isPdfOverlay) {
         // PDF overlay generation via pdf-lib
         if (!tpl.uploadedPdfUrl) { alert('No PDF attached to this template.'); return }
-        const url = await generatePdfWithOverlays(tpl.uploadedPdfUrl, tpl.pdfOverlays ?? [], stu)
-        setPdfUrl(url); setHtml('')
+        const url = await generatePdfWithOverlays(tpl.uploadedPdfUrl, tpl.pdfOverlays ?? [], stu, CUSTOM_FONT_STORE)
+        setPdfUrl(url); setHtml(''); setGenPdfImgs([])
+        // Render all pages to canvas images (no browser PDF viewer chrome)
+        try {
+          const pdfjs = await import('pdfjs-dist') as any
+          pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
+          const resp  = await fetch(url)
+          const bytes = await resp.arrayBuffer()
+          const pdf   = await pdfjs.getDocument({ data: bytes }).promise
+          const imgs: string[] = []
+          for (let p = 1; p <= pdf.numPages; p++) {
+            const page = await pdf.getPage(p)
+            const vp1  = page.getViewport({ scale: 1 })
+            const scale = Math.min(2, 1600 / vp1.width)
+            const vp   = page.getViewport({ scale })
+            const canvas = document.createElement('canvas')
+            canvas.width = vp.width; canvas.height = vp.height
+            await page.render({ canvasContext: canvas.getContext('2d')!, viewport: vp }).promise
+            imgs.push(canvas.toDataURL('image/png'))
+          }
+          setGenPdfImgs(imgs)
+        } catch { /* fall back to showing download only */ }
       } else {
         const warnings = tpl.isMapped ? [] : validateTemplate(tpl.body)
         setGenWarnings(warnings)
@@ -3370,7 +3973,7 @@ function GenerateTab({ initialTemplate }: { initialTemplate: DocTemplate|null })
     } finally { setGenLoading(false) }
   }
 
-  function reset() { setStep(1); setTpl(null); setStu(null); setPurp(''); setHtml(''); setPdfUrl(null); setQuery(''); setGenWarnings([]) }
+  function reset() { setStep(1); setTpl(null); setStu(null); setPurp(''); setHtml(''); setPdfUrl(null); setQuery(''); setGenWarnings([]); setGenPdfImgs([]) }
 
   return (
     <div className="space-y-5">
@@ -3525,16 +4128,10 @@ function GenerateTab({ initialTemplate }: { initialTemplate: DocTemplate|null })
               </div>
               <div className="flex gap-2">
                 {pdfUrl ? (
-                  <>
-                    <a href={pdfUrl} download={`${tpl.name} - ${stu.firstName} ${stu.lastName}.pdf`}
-                      className="flex items-center gap-1.5 rounded-xl bg-brand-500 px-4 py-2 text-xs font-bold text-white hover:bg-brand-600">
-                      <Download className="h-4 w-4" /> Download PDF
-                    </a>
-                    <button onClick={() => window.open(pdfUrl, '_blank')}
-                      className="flex items-center gap-1.5 rounded-xl border border-brand-200 bg-brand-50 px-4 py-2 text-xs font-bold text-brand-700 hover:bg-brand-100">
-                      <Eye className="h-3.5 w-3.5" /> View
-                    </button>
-                  </>
+                  <a href={pdfUrl} download={`${tpl.name} - ${stu.firstName} ${stu.lastName}.pdf`}
+                    className="flex items-center gap-1.5 rounded-xl bg-brand-500 px-4 py-2 text-xs font-bold text-white hover:bg-brand-600">
+                    <Download className="h-4 w-4" /> Download PDF
+                  </a>
                 ) : (
                   <button onClick={() => printDoc(html, tpl.name)} className="flex items-center gap-1.5 rounded-xl bg-brand-500 px-4 py-2 text-xs font-bold text-white hover:bg-brand-600">
                     <Printer className="h-4 w-4" /> Print / Save PDF
@@ -3547,12 +4144,29 @@ function GenerateTab({ initialTemplate }: { initialTemplate: DocTemplate|null })
             </div>
           </Card>
           {pdfUrl ? (
-            <div className="rounded-2xl border border-[#e4ebf5] overflow-hidden" style={{ height:'70vh' }}>
-              <div className="bg-[#f0f4fa] border-b border-[#dce8f7] px-4 py-2.5 flex items-center gap-2">
-                <FileText className="h-3.5 w-3.5 text-slate-500" />
-                <span className="text-xs font-semibold text-slate-600">Generated PDF — {stu.firstName} {stu.lastName}</span>
+            <div className="rounded-2xl border border-[#e4ebf5] overflow-hidden bg-[#23272f]">
+              <div className="bg-[#1e2738] border-b border-[#2d3a50] px-4 py-2.5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-3.5 w-3.5 text-slate-400" />
+                  <span className="text-xs font-semibold text-slate-300">Generated PDF — {stu.firstName} {stu.lastName}</span>
+                  {genPdfImgs.length > 0 && <span className="text-[10px] text-slate-500">{genPdfImgs.length} page{genPdfImgs.length !== 1 ? 's' : ''}</span>}
+                </div>
               </div>
-              <iframe src={pdfUrl} className="w-full h-full border-0" title="Generated PDF" style={{ height:'calc(70vh - 40px)' }} />
+              <div className="overflow-y-auto p-6 flex flex-col items-center gap-4" style={{ maxHeight: '75vh' }}>
+                {genPdfImgs.length > 0 ? (
+                  genPdfImgs.map((src, i) => (
+                    <img key={i} src={src} alt={`Page ${i+1}`}
+                      className="w-full max-w-2xl rounded-lg shadow-2xl border border-[#3a4460]"
+                      style={{ display: 'block' }}
+                    />
+                  ))
+                ) : (
+                  <div className="flex flex-col items-center gap-3 py-12 text-slate-400">
+                    <FileText className="h-10 w-10 opacity-40" />
+                    <p className="text-sm font-semibold">Rendering PDF…</p>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <div className="rounded-2xl border border-[#e4ebf5] bg-white shadow-sm overflow-hidden">

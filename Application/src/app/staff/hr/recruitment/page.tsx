@@ -4,6 +4,7 @@ import { useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { SectionTitle } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
+import { useConfirm } from '@/components/shared/ConfirmDialog'
 import { cn, formatDate, formatCurrency } from '@/lib/utils'
 import { MOCK_JOB_APPLICATIONS, MOCK_JOB_POSTINGS } from '@/lib/mock-data'
 import type { JobApplication, AtsStage, InterviewType } from '@/types'
@@ -105,10 +106,29 @@ function SlideOver({
   onClose: () => void
   onSave: (updated: JobApplication) => void
 }) {
+  const confirm = useConfirm()
   const [form, setForm] = useState<JobApplication>({ ...app })
   const [rejectReason, setRejectReason] = useState(app.rejectionReason ?? '')
 
-  function handleSave() {
+  async function handleSave() {
+    if (form.stage === 'REJECTED' && app.stage !== 'REJECTED') {
+      const ok = await confirm({
+        title: 'Reject Applicant?',
+        message: 'This will move the applicant to the rejected stage.',
+        variant: 'danger',
+        confirmLabel: 'Reject Applicant',
+      })
+      if (!ok) return
+    }
+    if (form.stage === 'HIRED' && app.stage !== 'HIRED') {
+      const ok = await confirm({
+        title: 'Mark as Hired?',
+        message: 'This will finalize hiring for this applicant.',
+        variant: 'success',
+        confirmLabel: 'Confirm Hire',
+      })
+      if (!ok) return
+    }
     const updated = { ...form, rejectionReason: form.stage === 'REJECTED' ? rejectReason : form.rejectionReason, updatedAt: new Date().toISOString() }
     onSave(updated)
   }
@@ -266,6 +286,7 @@ function SlideOver({
 function RecruitmentInner() {
   const searchParams = useSearchParams()
   const jobFilter = searchParams.get('jobId') ?? 'all'
+  const confirm = useConfirm()
 
   const [apps, setApps] = useState<JobApplication[]>(MOCK_JOB_APPLICATIONS)
   const [selectedJobId, setSelectedJobId] = useState(jobFilter)
@@ -278,10 +299,19 @@ function RecruitmentInner() {
   const mainApps = filtered.filter((a) => a.stage !== 'REJECTED')
   const rejectedApps = filtered.filter((a) => a.stage === 'REJECTED')
 
-  function moveToNext(app: JobApplication) {
+  async function moveToNext(app: JobApplication) {
     const idx = PIPELINE.indexOf(app.stage)
     if (idx < 0 || idx >= PIPELINE.length - 1) return
     const nextStage = PIPELINE[idx + 1]
+    if (nextStage === 'HIRED') {
+      const ok = await confirm({
+        title: 'Mark as Hired?',
+        message: 'This will finalize hiring for this applicant.',
+        variant: 'success',
+        confirmLabel: 'Confirm Hire',
+      })
+      if (!ok) return
+    }
     const target = MOCK_JOB_APPLICATIONS.find((a) => a.id === app.id)
     if (target) {
       target.stage = nextStage

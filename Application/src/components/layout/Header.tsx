@@ -1,51 +1,12 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
-import { Search, Bell, X, ChevronRight, User, Palette, Settings, HelpCircle, LogOut } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Bell, User, Palette, Settings, HelpCircle, LogOut } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { useSession, signOut } from 'next-auth/react'
-import { MOCK_STUDENTS, MOCK_FACULTY, MOCK_COURSES, MOCK_NOTIFICATIONS, CRM_FOLLOWUPS } from '@/lib/mock-data'
-import { fullName } from '@/lib/utils'
+import { MOCK_NOTIFICATIONS, CRM_FOLLOWUPS } from '@/lib/mock-data'
 import { loadProfile } from '@/app/providers'
 
-const PAGE_TITLES: Record<string, string> = {
-  '/staff/dashboard':                'Dashboard',
-  '/staff/admissions':               'Admissions',
-  '/staff/admissions/crm':           'Admissions CRM',
-  '/staff/registrar':                'Student Records',
-  '/staff/treasury':                 'Treasury — Cashier',
-  '/staff/treasury/accounts':        'Student Accounts',
-  '/staff/treasury/logs':            'Transaction Logs',
-  '/staff/academic':                 'Subject Master List',
-  '/staff/academic/rooms':           'Rooms',
-  '/staff/academic/offerings':       'Subject Offerings',
-  '/staff/academic/departments':     'Departments',
-  '/staff/dean':                     'Dean Dashboard',
-  '/staff/dean/programs':            'Programs',
-  '/staff/dean/students':            'Student List',
-  '/staff/dean/assignments':         'Teacher Assignment',
-  '/staff/team':                     'Team Hub',
-  '/staff/calendar':                 'School Year Calendar',
-  '/staff/audit':                    'Audit Logs',
-  '/staff/treasury/budget':         'Budget Management',
-  '/staff/dean/budget':             'Department Budget',
-  '/staff/users':                    'User Management',
-  '/staff/profile':                  'My Profile',
-  '/staff/personalization':          'Personalization',
-  '/staff/settings':                 'Settings',
-  '/staff/help':                     'Help',
-  '/student/dashboard':              'Dashboard',
-  '/student/enrollment':             'Enrollment',
-  '/student/subjects':               'My Subjects',
-  '/student/soa':                    'Statement of Account',
-  '/student/notifications':          'Notifications',
-  '/student/profile':                'My Profile',
-  '/teacher/dashboard':              'Dashboard',
-  '/teacher/subjects':               'My Courses',
-  '/teacher/schedule':               'My Schedule',
-  '/teacher/team':                   'Team Hub',
-  '/teacher/calendar':               'School Year Calendar',
-}
 
 const PROFILE_MENU = [
   { label: 'Personalization', href: '/staff/personalization', icon: Palette,    desc: 'Theme & appearance' },
@@ -54,44 +15,18 @@ const PROFILE_MENU = [
   { label: 'Help',            href: '/staff/help',            icon: HelpCircle,  desc: 'Guides & FAQ' },
 ]
 
-type SearchResult = { type: string; id: string; label: string; sub?: string; href: string }
-
-function search(q: string): SearchResult[] {
-  if (q.length < 2) return []
-  const lq = q.toLowerCase()
-  const results: SearchResult[] = []
-  MOCK_STUDENTS.forEach((s) => {
-    const name = fullName(s)
-    if (name.toLowerCase().includes(lq) || s.studentId.toLowerCase().includes(lq))
-      results.push({ type: 'Student', id: s.id, label: name, sub: s.studentId, href: `/staff/registrar/${s.id}` })
-  })
-  MOCK_FACULTY.forEach((f) => {
-    if (fullName(f).toLowerCase().includes(lq))
-      results.push({ type: 'Faculty', id: f.id, label: fullName(f), sub: f.department ?? '', href: `/staff/dean` })
-  })
-  MOCK_COURSES?.forEach?.((c: { id: string; name: string; code: string }) => {
-    if (c.name.toLowerCase().includes(lq) || c.code.toLowerCase().includes(lq))
-      results.push({ type: 'Subject', id: c.id, label: c.name, sub: c.code, href: `/staff/academic` })
-  })
-  return results.slice(0, 5)
-}
 
 export function Header() {
   const { data: session } = useSession()
   const user     = session?.user as { name?: string; id?: string } | undefined
   const userId   = (session?.user as { id?: string })?.id ?? 'default'
   const router   = useRouter()
-  const pathname = usePathname()
 
-  const [query,       setQuery]       = useState('')
-  const [results,     setResults]     = useState<SearchResult[]>([])
-  const [open,        setOpen]        = useState(false)
   const [showNotifs,  setShowNotifs]  = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [photoUrl,    setPhotoUrl]    = useState<string>('')
   const [notifs,      setNotifs]      = useState(() => MOCK_NOTIFICATIONS.map(n => ({ ...n })))
 
-  const searchRef  = useRef<HTMLDivElement>(null)
   const notifRef   = useRef<HTMLDivElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
 
@@ -117,17 +52,8 @@ export function Header() {
     setNotifs(prev => prev.map(n => ({ ...n, isRead: true })))
   }
 
-  const title = Object.entries(PAGE_TITLES).find(([k]) => pathname === k || pathname.startsWith(k + '/'))?.[1] ?? ''
-
-  useEffect(() => {
-    const res = search(query)
-    setResults(res)
-    setOpen(res.length > 0)
-  }, [query])
-
   useEffect(() => {
     const h = (e: MouseEvent) => {
-      if (searchRef.current  && !searchRef.current.contains(e.target as Node))  setOpen(false)
       if (notifRef.current   && !notifRef.current.contains(e.target as Node))   setShowNotifs(false)
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) setShowProfile(false)
     }
@@ -139,43 +65,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-[35] flex h-14 items-center gap-4 border-b border-slate-100 bg-white dark:bg-slate-900 dark:border-slate-800 px-6">
-      {/* Page title */}
-      {title && <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 shrink-0 hidden sm:block">{title}</h2>}
-      {title && <div className="hidden sm:block h-4 w-px bg-slate-200 dark:bg-slate-700" />}
-
-      {/* Global search */}
-      <div className="relative flex-1 max-w-xs" ref={searchRef}>
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-          <input
-            type="text" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search…"
-            className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 pl-8 pr-7 py-1.5 text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:bg-white dark:focus:bg-slate-700 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 transition-all"
-          />
-          {query && (
-            <button onClick={() => { setQuery(''); setOpen(false) }} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-              <X className="h-3 w-3" />
-            </button>
-          )}
-        </div>
-        {open && (
-          <div className="absolute top-full mt-1.5 w-72 rounded-xl border border-slate-100 bg-white shadow-card-md overflow-hidden z-50 animate-slide-up">
-            {results.map((r) => (
-              <button key={r.id} onClick={() => { router.push(r.href); setQuery(''); setOpen(false) }}
-                className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 transition-colors group"
-              >
-                <span className="shrink-0 rounded-md bg-brand-50 px-1.5 py-0.5 text-2xs font-semibold text-brand-600 uppercase">{r.type}</span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-slate-900 truncate">{r.label}</p>
-                  {r.sub && <p className="text-xs text-slate-400">{r.sub}</p>}
-                </div>
-                <ChevronRight className="h-3.5 w-3.5 text-slate-300 group-hover:text-slate-500" />
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="flex-1" />
+<div className="flex-1" />
 
       {/* Notifications */}
       <div className="relative" ref={notifRef}>

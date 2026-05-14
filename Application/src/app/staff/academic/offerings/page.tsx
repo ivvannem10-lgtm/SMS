@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
-import { Plus, CalendarPlus } from 'lucide-react'
+import { Plus, CalendarPlus, XCircle, RotateCcw, ChevronDown, AlertTriangle } from 'lucide-react'
+import { useConfirm } from '@/components/shared/ConfirmDialog'
 import { Card, SectionTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Select, Input } from '@/components/ui/Input'
@@ -12,7 +13,8 @@ import { formatTime, DAY_ABBR, fullName } from '@/lib/utils'
 import type { SubjectOffering, Semester } from '@/types'
 
 export default function OfferingsPage() {
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'DRAFT' | 'PUBLISHED'>('ALL')
+  const confirm = useConfirm()
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'DRAFT' | 'PUBLISHED' | 'CLOSED'>('ALL')
   const [yearFilter,   setYearFilter]   = useState<string>('ALL')
 
   const [addModal,     setAddModal]     = useState(false)
@@ -21,6 +23,8 @@ export default function OfferingsPage() {
   const [publishOff,   setPublishOff]   = useState<SubjectOffering | null>(null)
   const [offerings,    setOfferings]    = useState(MOCK_OFFERINGS)
   const [semesters,    setSemesters]    = useState<Semester[]>(MOCK_SEMESTERS)
+  const [termModal,    setTermModal]    = useState<'close' | 'reopen' | null>(null)
+  const [termSemId,    setTermSemId]    = useState<string>('')
   const [academicYears] = useState(MOCK_ACADEMIC_YEARS)
 
   const [newOff, setNewOff] = useState({
@@ -61,6 +65,30 @@ export default function OfferingsPage() {
     setOfferings((p) => p.map((o) => o.id === id ? { ...o, status: 'PUBLISHED' } : o))
     setPublishOff(null)
   }
+
+  function handleCloseAll() {
+    if (!termSemId) return
+    MOCK_OFFERINGS.forEach((o) => {
+      if (o.semesterId === termSemId && o.status === 'PUBLISHED') o.status = 'CLOSED'
+    })
+    setOfferings([...MOCK_OFFERINGS])
+    setTermModal(null)
+    setTermSemId('')
+  }
+
+  function handleReopenAll() {
+    if (!termSemId) return
+    MOCK_OFFERINGS.forEach((o) => {
+      if (o.semesterId === termSemId && o.status === 'CLOSED') o.status = 'PUBLISHED'
+    })
+    setOfferings([...MOCK_OFFERINGS])
+    setTermModal(null)
+    setTermSemId('')
+  }
+
+  const termSemName = semesters.find((s) => s.id === termSemId)?.name ?? ''
+  const closeCount  = offerings.filter((o) => o.semesterId === termSemId && o.status === 'PUBLISHED').length
+  const reopenCount = offerings.filter((o) => o.semesterId === termSemId && o.status === 'CLOSED').length
 
   function handleAddOffering() {
     const subject  = MOCK_SUBJECTS.find((s) => s.id === newOff.subjectId)
@@ -107,6 +135,18 @@ export default function OfferingsPage() {
         description="Subject offerings across all semesters"
         actions={
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setTermSemId(semesters.find(s => s.isActive)?.id ?? semesters[0]?.id ?? ''); setTermModal('close') }}
+              className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 transition-colors"
+            >
+              <XCircle className="h-3.5 w-3.5" /> Close Term
+            </button>
+            <button
+              onClick={() => { setTermSemId(semesters.find(s => s.isActive)?.id ?? semesters[0]?.id ?? ''); setTermModal('reopen') }}
+              className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors"
+            >
+              <RotateCcw className="h-3.5 w-3.5" /> Re-open Term
+            </button>
             <Button variant="outline" icon={<CalendarPlus className="h-4 w-4" />} onClick={() => setSemModal(true)}>
               New Semester
             </Button>
@@ -122,11 +162,15 @@ export default function OfferingsPage() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1">
-          {(['ALL', 'DRAFT', 'PUBLISHED'] as const).map((f) => (
+          {(['ALL', 'DRAFT', 'PUBLISHED', 'CLOSED'] as const).map((f) => (
             <button
               key={f}
               onClick={() => setStatusFilter(f)}
-              className={`rounded-md px-3 py-1 text-xs font-medium transition-all ${statusFilter === f ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`rounded-md px-3 py-1 text-xs font-medium transition-all ${
+                statusFilter === f
+                  ? f === 'CLOSED' ? 'bg-slate-600 text-white' : 'bg-slate-900 text-white'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
             >
               {f === 'ALL' ? 'All' : f.charAt(0) + f.slice(1).toLowerCase()}
             </button>
@@ -185,18 +229,60 @@ export default function OfferingsPage() {
                         </div>
                       </Td>
                       <Td>
-                        <Badge className={offering.status === 'PUBLISHED' ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' : 'bg-amber-50 text-amber-700 ring-amber-600/20'}>
+                        <Badge className={
+                          offering.status === 'PUBLISHED' ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' :
+                          offering.status === 'CLOSED'    ? 'bg-slate-100 text-slate-600 ring-slate-500/20' :
+                          'bg-amber-50 text-amber-700 ring-amber-600/20'
+                        }>
                           {offering.status}
                         </Badge>
                       </Td>
                       <Td>
-                        {offering.status === 'DRAFT' ? (
+                        {offering.status === 'DRAFT' && (
                           <button onClick={() => setPublishOff(offering)} className="text-xs font-semibold text-violet-600 hover:text-violet-700 transition-colors">
                             Publish
                           </button>
-                        ) : (
-                          <button onClick={() => setManageOff(offering)} className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors">
-                            Manage
+                        )}
+                        {offering.status === 'PUBLISHED' && (
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => setManageOff(offering)} className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors">
+                              Manage
+                            </button>
+                            <span className="text-slate-200">·</span>
+                            <button
+                              onClick={async () => {
+                                const ok = await confirm({
+                                  title: 'Close Course',
+                                  message: `Close "${offering.subject?.name} — ${offering.section}"? Students can still view grades, but no new enrollments or schedule changes will be accepted.`,
+                                  confirmLabel: 'Close Course',
+                                  variant: 'warning',
+                                })
+                                if (!ok) return
+                                MOCK_OFFERINGS.forEach((o) => { if (o.id === offering.id) o.status = 'CLOSED' })
+                                setOfferings([...MOCK_OFFERINGS])
+                              }}
+                              className="text-xs font-semibold text-slate-500 hover:text-red-600 transition-colors"
+                            >
+                              Close
+                            </button>
+                          </div>
+                        )}
+                        {offering.status === 'CLOSED' && (
+                          <button
+                            onClick={async () => {
+                              const ok = await confirm({
+                                title: 'Re-open Course',
+                                message: `Re-open "${offering.subject?.name} — ${offering.section}"? The course will return to Published status and accept enrollments again.`,
+                                confirmLabel: 'Re-open',
+                                variant: 'success',
+                              })
+                              if (!ok) return
+                              MOCK_OFFERINGS.forEach((o) => { if (o.id === offering.id) o.status = 'PUBLISHED' })
+                              setOfferings([...MOCK_OFFERINGS])
+                            }}
+                            className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition-colors"
+                          >
+                            Re-open
                           </button>
                         )}
                       </Td>
@@ -344,6 +430,88 @@ export default function OfferingsPage() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* ── Close Term Modal ──────────────────────────────────────────────── */}
+      {termModal === 'close' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-brand-900/50 backdrop-blur-sm" onClick={() => setTermModal(null)} />
+          <div className="relative w-[460px] rounded-2xl bg-white shadow-2xl overflow-hidden">
+            <div className="border-l-[3px] border-red-500 px-5 py-4">
+              <p className="text-sm font-bold text-slate-900">Close All Courses for a Term</p>
+              <p className="text-xs text-slate-400 mt-0.5">All Published offerings in the selected semester will be marked Closed.</p>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Select Semester / Term</label>
+                <select value={termSemId} onChange={(e) => setTermSemId(e.target.value)}
+                  className="w-full rounded-lg border border-[#dce8f7] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/15">
+                  <option value="">— Choose semester —</option>
+                  {semesters.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}{s.isActive ? ' (Active)' : ''}</option>
+                  ))}
+                </select>
+              </div>
+              {termSemId && (
+                <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 flex items-start gap-2.5">
+                  <AlertTriangle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                  <div className="text-xs text-red-700 space-y-0.5">
+                    <p className="font-semibold">{closeCount} Published offering{closeCount !== 1 ? 's' : ''} will be closed.</p>
+                    <p>Closed courses are locked from further enrollments and teacher schedule additions. Students can still view their grades.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2 justify-end px-5 py-4 border-t border-slate-100">
+              <button onClick={() => setTermModal(null)} className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
+              <button onClick={handleCloseAll} disabled={!termSemId || closeCount === 0}
+                className="flex items-center gap-1.5 rounded-lg bg-red-500 px-4 py-2 text-xs font-bold text-white hover:bg-red-600 disabled:opacity-40 transition-colors">
+                <XCircle className="h-3.5 w-3.5" /> Close {closeCount > 0 ? `${closeCount} Courses` : 'Courses'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Re-open Term Modal ────────────────────────────────────────────── */}
+      {termModal === 'reopen' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-brand-900/50 backdrop-blur-sm" onClick={() => setTermModal(null)} />
+          <div className="relative w-[460px] rounded-2xl bg-white shadow-2xl overflow-hidden">
+            <div className="border-l-[3px] border-emerald-500 px-5 py-4">
+              <p className="text-sm font-bold text-slate-900">Re-open All Courses for a Term</p>
+              <p className="text-xs text-slate-400 mt-0.5">All Closed offerings in the selected semester will be re-published.</p>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Select Semester / Term</label>
+                <select value={termSemId} onChange={(e) => setTermSemId(e.target.value)}
+                  className="w-full rounded-lg border border-[#dce8f7] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/15">
+                  <option value="">— Choose semester —</option>
+                  {semesters.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}{s.isActive ? ' (Active)' : ''}</option>
+                  ))}
+                </select>
+              </div>
+              {termSemId && (
+                <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 flex items-start gap-2.5">
+                  <RotateCcw className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <div className="text-xs text-emerald-700 space-y-0.5">
+                    <p className="font-semibold">{reopenCount} Closed offering{reopenCount !== 1 ? 's' : ''} will be re-opened.</p>
+                    <p>Courses will return to Published status and accept enrollments and schedules again.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2 justify-end px-5 py-4 border-t border-slate-100">
+              <button onClick={() => setTermModal(null)} className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
+              <button onClick={handleReopenAll} disabled={!termSemId || reopenCount === 0}
+                className="flex items-center gap-1.5 rounded-lg bg-emerald-500 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-600 disabled:opacity-40 transition-colors">
+                <RotateCcw className="h-3.5 w-3.5" /> Re-open {reopenCount > 0 ? `${reopenCount} Courses` : 'Courses'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

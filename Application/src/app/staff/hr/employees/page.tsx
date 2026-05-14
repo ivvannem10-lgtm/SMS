@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/Badge'
 import { cn, formatDate, formatCurrency } from '@/lib/utils'
 import { MOCK_HR_EMPLOYEES, MOCK_JOB_POSTINGS } from '@/lib/mock-data'
 import type { HREmployee, HREmploymentStatus, EmploymentType, WorkSetup } from '@/types'
-import { Users, UserPlus, Search, Filter, Eye, Building2, Briefcase, MapPin } from 'lucide-react'
+import { Users, UserPlus, Search, Filter, Eye, Building2, Briefcase, MapPin, Upload } from 'lucide-react'
+import { ImportModal } from '@/components/shared/ImportModal'
 
 const STATUS_BADGE: Record<HREmploymentStatus, string> = {
   ACTIVE:     'bg-emerald-50 text-emerald-700 ring-emerald-200',
@@ -86,7 +87,8 @@ export default function EmployeesPage() {
   const [deptFilter, setDeptFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
-  const [showModal, setShowModal] = useState(false)
+  const [showModal,   setShowModal]   = useState(false)
+  const [importOpen,  setImportOpen]  = useState(false)
   const [form, setForm] = useState<AddEmployeeForm>(EMPTY_FORM)
   const [formError, setFormError] = useState('')
 
@@ -143,17 +145,49 @@ export default function EmployeesPage() {
       <SectionTitle
         description="Manage all school staff and faculty employment records"
         actions={
-          <button
-            onClick={() => { setShowModal(true); setFormError('') }}
-            className="flex items-center gap-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold px-4 py-2 transition-colors"
-          >
-            <UserPlus className="h-4 w-4" />
-            Add Employee
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => setImportOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-[#dce8f7] bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-brand-50 hover:border-brand-300 hover:text-brand-700 transition-all">
+              <Upload className="h-3.5 w-3.5" /> Import
+            </button>
+            <button onClick={() => { setShowModal(true); setFormError('') }}
+              className="flex items-center gap-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold px-4 py-2 transition-colors">
+              <UserPlus className="h-4 w-4" /> Add Employee
+            </button>
+          </div>
         }
       >
         Employee Records
       </SectionTitle>
+
+      {importOpen && (
+        <ImportModal
+          templateId="employees"
+          onClose={() => setImportOpen(false)}
+          onImport={(rows) => {
+            rows.forEach((row) => {
+              const emp: HREmployee = {
+                id: `emp_imp_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
+                employeeNo: `EMP-${new Date().getFullYear()}-${String(MOCK_HR_EMPLOYEES.length + 1).padStart(3,'0')}`,
+                firstName: row.first_name ?? '', lastName: row.last_name ?? '',
+                middleName: row.middle_name || undefined,
+                email: row.email ?? '', phone: row.phone || undefined,
+                position: row.position ?? '', department: row.department ?? '',
+                employmentType: (row.employment_type as HREmployee['employmentType']) || 'FULL_TIME',
+                workSetup: (row.work_setup as HREmployee['workSetup']) || 'ON_SITE',
+                status: 'ACTIVE', startDate: row.start_date || new Date().toISOString().split('T')[0],
+                salary: row.salary ? Number(row.salary) : undefined,
+                birthday: row.birthday || undefined, gender: row.gender || undefined,
+                sssNo: row.sss_no || undefined, philhealthNo: row.philhealth_no || undefined,
+                createdAt: new Date().toISOString(),
+              }
+              MOCK_HR_EMPLOYEES.push(emp)
+            })
+            setEmployees([...MOCK_HR_EMPLOYEES])
+            setImportOpen(false)
+          }}
+        />
+      )}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         <Card>

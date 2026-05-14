@@ -11,9 +11,9 @@ const student = MOCK_STUDENTS[0]
 export default function StudentGradesPage() {
   const enrollments = MOCK_ENROLLMENTS.filter((e) => e.studentId === student?.id)
 
-  // Only show grades from APPROVED submissions — this is the safety gate
+  // Only show grades from PUBLISHED submissions — this is the safety gate
   const approvedEntries = MOCK_GRADE_SUBMISSIONS
-    .filter((s) => s.status === 'APPROVED')
+    .filter((s) => s.status === 'PUBLISHED')
     .flatMap((s) => s.entries.map((e) => ({ ...e, submission: s })))
 
   const gradeByEnrollment = Object.fromEntries(
@@ -46,7 +46,7 @@ export default function StudentGradesPage() {
                   <th className="px-4 py-3 text-center text-xs font-semibold text-brand-700 uppercase tracking-widest">Final Grade</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-brand-700 uppercase tracking-widest">Rating</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-brand-700 uppercase tracking-widest">Status</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-brand-700 uppercase tracking-widest">Approved</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-brand-700 uppercase tracking-widest">Published</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -79,7 +79,7 @@ export default function StudentGradesPage() {
                           <td className="px-4 py-3 text-center">
                             <div className="flex flex-col items-center gap-0.5">
                               <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                              <span className="text-xs text-slate-400">{formatDate(sub?.reviewedAt)}</span>
+                              <span className="text-xs text-slate-400">{formatDate(sub?.publishedAt)}</span>
                             </div>
                           </td>
                         </>

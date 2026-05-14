@@ -61,8 +61,6 @@ export default function RegistrarStudentPage({ params }: { params: { studentId: 
   const [photoUrl, setPhotoUrl] = useState<string | null>(student?.photo ?? null)
   const photoInputRef = useRef<HTMLInputElement>(null)
   const [formErrors, setFormErrors] = useState<{ email?: string; phone?: string }>({})
-  const isPhoneValid = (p: string) => /^(\+?63|0)9\d{9}$/.test(p.replace(/[\s\-]/g, ''))
-  const [verified, setVerified] = useState({ email: true, phone: isPhoneValid(student?.phone ?? '') })
 
   // ── Education history (addable) ──────────────────────────────────────────
   const [history, setHistory] = useState<EducationRecord[]>([
@@ -297,14 +295,12 @@ export default function RegistrarStudentPage({ params }: { params: { studentId: 
                     <span className="inline-flex items-center gap-1.5 text-sm text-slate-500 whitespace-nowrap">
                       <Mail className="h-3.5 w-3.5 shrink-0" />
                       {student.email}
-                      {verified.email && <VerifiedTag />}
                     </span>
                   )}
                   {student.phone && (
                     <span className="inline-flex items-center gap-1.5 text-sm text-slate-500 whitespace-nowrap">
                       <Phone className="h-3.5 w-3.5 shrink-0" />
                       {student.phone}
-                      {verified.phone && <VerifiedTag />}
                     </span>
                   )}
                 </div>
@@ -397,29 +393,6 @@ export default function RegistrarStudentPage({ params }: { params: { studentId: 
                   placeholder="+63 9XX-XXX-XXXX"
                   error={formErrors.phone}
                 />
-                {/* Verification toggles */}
-                <div className="flex items-center gap-6 sm:col-span-2">
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={verified.email}
-                      onChange={(e) => setVerified((p) => ({ ...p, email: e.target.checked }))}
-                      className="h-4 w-4 rounded border-slate-300 text-emerald-600 accent-emerald-600"
-                    />
-                    <span className="text-xs text-slate-600">Email verified</span>
-                    {verified.email && <VerifiedTag />}
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={verified.phone}
-                      onChange={(e) => setVerified((p) => ({ ...p, phone: e.target.checked }))}
-                      className="h-4 w-4 rounded border-slate-300 text-emerald-600 accent-emerald-600"
-                    />
-                    <span className="text-xs text-slate-600">Mobile verified</span>
-                    {verified.phone && <VerifiedTag />}
-                  </label>
-                </div>
                 <div className="sm:col-span-2">
                   <Textarea label="Home Address" value={form.address} onChange={(e) => update('address', e.target.value)} rows={2} />
                 </div>
@@ -458,8 +431,8 @@ export default function RegistrarStudentPage({ params }: { params: { studentId: 
               <Card>
                 <h3 className="text-sm font-semibold text-slate-900 mb-3">Contact Information</h3>
                 <dl className="space-y-2.5">
-                  <Row label="Email"  value={student.email}      verified={verified.email} />
-                  <Row label="Mobile" value={student.phone ?? '—'} verified={verified.phone} />
+                  <Row label="Email"  value={student.email} />
+                  <Row label="Mobile" value={student.phone ?? '—'} />
                   <Row label="Address" value={student.address ?? '—'} />
                   <Row label="Status"  value={student.status} />
                 </dl>
@@ -919,21 +892,12 @@ function Fact({ label, value, mono }: { label: string; value: string; mono?: boo
   )
 }
 
-function VerifiedTag() {
-  return (
-    <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-1 py-px text-[9px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
-      <Check className="h-2 w-2" /> Verified
-    </span>
-  )
-}
-
-function Row({ label, value, capitalize, verified }: { label: string; value: string; capitalize?: boolean; verified?: boolean }) {
+function Row({ label, value, capitalize }: { label: string; value: string; capitalize?: boolean }) {
   return (
     <div className="flex gap-3">
       <dt className="w-32 shrink-0 text-xs text-slate-400">{label}</dt>
       <dd className={`flex items-center gap-1.5 text-xs font-medium text-slate-800 ${capitalize ? 'capitalize' : ''}`}>
         {value}
-        {verified && <VerifiedTag />}
       </dd>
     </div>
   )

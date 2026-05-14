@@ -6,6 +6,13 @@ import type {
   OfferingSchedule, PipelineStats, GradeSubmission, CustomRole, SystemUser,
   Budget, BudgetExpense, LMSAnnouncement, LMSAttendance, LMSDiscussionPost,
   JobPosting, JobApplication, HREmployee, HROnboardingRecord, HRLeaveRequest,
+  Asset, AssetDeployment, AssetHistory, Consumable, ConsumableTransaction,
+  MaintenanceLog, AssetTagFormat,
+  Vendor, PurchaseRequest, PurchaseOrder, OfficialReceipt, CashflowEntry,
+  FinancialExpense, BudgetReservation,
+  UniversalRequest,
+  SupportTicket, KBArticle, TicketPriority,
+  InstitutionalForm, FormSubmission, FormSettings,
 } from '@/types'
 
 export const MOCK_SCHOOL: School = {
@@ -997,3 +1004,779 @@ export const MOCK_HR_LEAVES: HRLeaveRequest[] = [
   { id: 'leave_6', employeeId: 'emp_3', employeeName: 'Carlos Mendoza', employeeNo: 'EMP-2024-008', department: 'College of Computing', leaveType: 'EMERGENCY', startDate: '2025-11-05', endDate: '2025-11-05', totalDays: 1, reason: 'Family emergency — father hospitalized.', status: 'APPROVED', reviewedBy: 'Hannah Rodriguez', reviewedAt: '2025-11-05T07:30:00Z', appliedAt: '2025-11-05T06:00:00Z' },
   { id: 'leave_7', employeeId: 'emp_4', employeeName: 'Rosa Registrar', employeeNo: 'EMP-2021-003', department: 'Office of the Registrar', leaveType: 'VACATION', startDate: '2025-12-22', endDate: '2025-12-25', totalDays: 4, reason: 'Christmas holiday with family.', status: 'REJECTED', reviewedBy: 'Hannah Rodriguez', reviewedAt: '2025-12-01T10:00:00Z', rejectionReason: 'All-hands required during enrollment period. Please refile for a different date.', appliedAt: '2025-11-20T09:00:00Z' },
 ]
+
+// ─── AMS (Asset Management System) ───────────────────────────────────────────
+
+export const MOCK_ASSETS: Asset[] = [
+  {
+    id: 'ast_1', assetTag: 'IT-LAPTOP-2026-0001', name: 'Dell Latitude 5420',
+    category: 'LAPTOP', brand: 'Dell', model: 'Latitude 5420', serialNumber: 'DL542026001',
+    description: '14-inch laptop, Intel Core i5-1135G7, 8GB RAM, 256GB SSD',
+    status: 'AVAILABLE', department: 'College of Computing',
+    custodianType: 'DEPARTMENT', custodianName: 'IT Services',
+    purchaseDate: '2026-01-15', supplier: 'Dell Philippines', purchaseCost: 65000,
+    warrantyExpiry: '2029-01-15', campus: 'Main Campus', building: 'IT Building', room: '101',
+    inclusions: [
+      { id: 'inc_1a', name: 'Charger/Adapter', quantity: 1 },
+      { id: 'inc_1b', name: 'Laptop Bag', quantity: 1 },
+    ],
+    createdAt: '2026-01-20T08:00:00Z', updatedAt: '2026-01-20T08:00:00Z',
+  },
+  {
+    id: 'ast_2', assetTag: 'IT-LAPTOP-2026-0002', name: 'Lenovo ThinkPad X1 Carbon',
+    category: 'LAPTOP', brand: 'Lenovo', model: 'ThinkPad X1 Carbon Gen 10', serialNumber: 'LN1C26002',
+    description: '14-inch ultrabook, Intel Core i7-1260P, 16GB RAM, 512GB SSD',
+    status: 'DEPLOYED', department: 'College of Computing',
+    custodianType: 'INDIVIDUAL', custodianName: 'Prof. Roberto Santos',
+    purchaseDate: '2026-01-15', supplier: 'Lenovo Philippines', purchaseCost: 95000,
+    warrantyExpiry: '2029-01-15', campus: 'Main Campus', building: 'IT Building', room: '102',
+    inclusions: [
+      { id: 'inc_2a', name: 'Charger/Adapter', quantity: 1 },
+      { id: 'inc_2b', name: 'USB-C Hub', quantity: 1 },
+      { id: 'inc_2c', name: 'Mouse', quantity: 1 },
+    ],
+    createdAt: '2026-01-20T09:00:00Z', updatedAt: '2026-02-01T10:00:00Z',
+  },
+  {
+    id: 'ast_3', assetTag: 'IT-PROJ-2026-0001', name: 'Epson EB-X51 Projector',
+    category: 'PROJECTOR', brand: 'Epson', model: 'EB-X51', serialNumber: 'EP51X26001',
+    description: '3800 lumens XGA projector for classroom/conference use',
+    status: 'BORROWED', department: 'College of Business',
+    custodianType: 'DEPARTMENT', custodianName: 'AV Equipment Room',
+    purchaseDate: '2025-06-01', supplier: 'Epson Philippines', purchaseCost: 32000,
+    warrantyExpiry: '2028-06-01', campus: 'Main Campus', building: 'Business Hall', room: 'AV Room',
+    inclusions: [
+      { id: 'inc_3a', name: 'Power Cable', quantity: 1 },
+      { id: 'inc_3b', name: 'VGA Cable', quantity: 1 },
+      { id: 'inc_3c', name: 'HDMI Cable', quantity: 1 },
+      { id: 'inc_3d', name: 'Remote Control', quantity: 1 },
+      { id: 'inc_3e', name: 'Carrying Case', quantity: 1 },
+    ],
+    createdAt: '2025-06-05T08:00:00Z', updatedAt: '2026-02-10T09:00:00Z',
+  },
+  {
+    id: 'ast_4', assetTag: 'IT-PRINT-2026-0001', name: 'Canon LBP2900B Printer',
+    category: 'PRINTER', brand: 'Canon', model: 'LBP2900B', serialNumber: 'CN29B26001',
+    description: 'Monochrome laser printer, 12ppm, USB connectivity',
+    status: 'AVAILABLE', department: 'Office of the Registrar',
+    custodianType: 'DEPARTMENT', custodianName: 'Registrar Office',
+    purchaseDate: '2025-03-10', supplier: 'Canon Philippines', purchaseCost: 8500,
+    warrantyExpiry: '2027-03-10', campus: 'Main Campus', building: 'Admin Building', room: 'Registrar Office',
+    inclusions: [
+      { id: 'inc_4a', name: 'Power Cable', quantity: 1 },
+      { id: 'inc_4b', name: 'USB Cable', quantity: 1 },
+      { id: 'inc_4c', name: 'Toner Cartridge (starter)', quantity: 1 },
+    ],
+    createdAt: '2025-03-15T08:00:00Z', updatedAt: '2025-03-15T08:00:00Z',
+  },
+  {
+    id: 'ast_5', assetTag: 'IT-DESK-2025-0001', name: 'HP EliteDesk 800 G6',
+    category: 'DESKTOP', brand: 'HP', model: 'EliteDesk 800 G6', serialNumber: 'HP800G625001',
+    description: 'Mini desktop PC, Intel Core i5-10500, 8GB RAM, 256GB SSD',
+    status: 'IN_USE', department: 'College of Nursing',
+    custodianType: 'DEPARTMENT', custodianName: 'Nursing Simulation Lab',
+    purchaseDate: '2025-01-20', supplier: 'HP Philippines', purchaseCost: 45000,
+    warrantyExpiry: '2028-01-20', campus: 'Main Campus', building: 'Nursing Building', room: 'Sim Lab 1',
+    inclusions: [
+      { id: 'inc_5a', name: 'Monitor', quantity: 1 },
+      { id: 'inc_5b', name: 'Keyboard', quantity: 1 },
+      { id: 'inc_5c', name: 'Mouse', quantity: 1 },
+      { id: 'inc_5d', name: 'Power Cable', quantity: 1 },
+    ],
+    createdAt: '2025-01-25T08:00:00Z', updatedAt: '2025-01-25T08:00:00Z',
+  },
+  {
+    id: 'ast_6', assetTag: 'IT-MON-2026-0001', name: 'LG 24MK430H Monitor',
+    category: 'MONITOR', brand: 'LG', model: '24MK430H', serialNumber: 'LG24M26001',
+    description: '24-inch Full HD IPS monitor, HDMI & VGA inputs',
+    status: 'AVAILABLE', department: 'IT Services',
+    custodianType: 'DEPARTMENT', custodianName: 'IT Storage Room',
+    purchaseDate: '2026-01-15', supplier: 'LG Philippines', purchaseCost: 12000,
+    warrantyExpiry: '2029-01-15', campus: 'Main Campus', building: 'IT Building', storageArea: 'Storage Room A',
+    inclusions: [
+      { id: 'inc_6a', name: 'Power Cable', quantity: 1 },
+      { id: 'inc_6b', name: 'HDMI Cable', quantity: 1 },
+    ],
+    createdAt: '2026-01-20T10:00:00Z', updatedAt: '2026-01-20T10:00:00Z',
+  },
+  {
+    id: 'ast_7', assetTag: 'IT-TAB-2026-0001', name: 'Apple iPad Air 5th Gen',
+    category: 'TABLET', brand: 'Apple', model: 'iPad Air 5 (M1)', serialNumber: 'AP1A526001',
+    description: '10.9-inch iPad Air with M1 chip, 64GB WiFi',
+    status: 'UNDER_MAINTENANCE', department: 'Dean\'s Office',
+    custodianType: 'INDIVIDUAL', custodianName: 'Dr. Maria Santos',
+    purchaseDate: '2025-08-01', supplier: 'Apple Premium Reseller', purchaseCost: 42000,
+    warrantyExpiry: '2027-08-01', campus: 'Main Campus', building: 'Admin Building', room: 'Dean\'s Office',
+    inclusions: [
+      { id: 'inc_7a', name: 'USB-C Charger', quantity: 1 },
+      { id: 'inc_7b', name: 'Apple Pencil', quantity: 1 },
+      { id: 'inc_7c', name: 'Smart Folio Case', quantity: 1 },
+    ],
+    createdAt: '2025-08-05T08:00:00Z', updatedAt: '2026-02-08T09:00:00Z',
+  },
+  {
+    id: 'ast_8', assetTag: 'IT-ROUT-2025-0001', name: 'Cisco RV340 Router',
+    category: 'ROUTER', brand: 'Cisco', model: 'RV340', serialNumber: 'CSRV34025001',
+    description: 'Dual WAN Gigabit VPN router, supports up to 100 VPN tunnels',
+    status: 'AVAILABLE', department: 'IT Services',
+    custodianType: 'DEPARTMENT', custodianName: 'Network Infrastructure Team',
+    purchaseDate: '2025-05-10', supplier: 'Cisco Philippines', purchaseCost: 18500,
+    warrantyExpiry: '2028-05-10', campus: 'Main Campus', building: 'IT Building', room: 'Server Room',
+    inclusions: [
+      { id: 'inc_8a', name: 'Power Adapter', quantity: 1 },
+      { id: 'inc_8b', name: 'Ethernet Cable', quantity: 2 },
+    ],
+    createdAt: '2025-05-15T08:00:00Z', updatedAt: '2025-05-15T08:00:00Z',
+  },
+]
+
+export const MOCK_ASSET_DEPLOYMENTS: AssetDeployment[] = [
+  {
+    id: 'dep_1', assetId: 'ast_3', assetTag: 'IT-PROJ-2026-0001', assetName: 'Epson EB-X51 Projector',
+    borrowerName: 'Juan Santos', borrowerDepartment: 'College of Business',
+    custodian: 'Prof. Maria Reyes', deploymentType: 'TEMPORARY_BORROW',
+    startDate: '2026-02-10', startTime: '08:00',
+    expectedReturnDate: '2026-02-14', expectedReturnTime: '17:00',
+    purpose: 'Business presentation for annual faculty summit and department review.',
+    status: 'ACTIVE', createdAt: '2026-02-09T14:00:00Z',
+  },
+  {
+    id: 'dep_2', assetId: 'ast_2', assetTag: 'IT-LAPTOP-2026-0002', assetName: 'Lenovo ThinkPad X1 Carbon',
+    borrowerName: 'Prof. Roberto Santos', borrowerDepartment: 'College of Computing',
+    custodian: 'Prof. Roberto Santos', deploymentType: 'LONG_TERM_DEPLOYMENT',
+    startDate: '2026-02-01', startTime: '08:00',
+    purpose: 'Assigned as primary teaching laptop for Prof. Santos for the 1st Semester 2025-2026.',
+    status: 'ACTIVE', createdAt: '2026-02-01T08:00:00Z',
+  },
+  {
+    id: 'dep_3', assetId: 'ast_1', assetTag: 'IT-LAPTOP-2026-0001', assetName: 'Dell Latitude 5420',
+    borrowerName: 'Angela Reyes', borrowerDepartment: 'Admissions Office',
+    custodian: 'Ana Admissions', deploymentType: 'TEMPORARY_BORROW',
+    startDate: '2026-01-25', startTime: '09:00',
+    expectedReturnDate: '2026-01-30', expectedReturnTime: '17:00',
+    purpose: 'Used for applicant processing during enrollment period.',
+    status: 'RETURNED',
+    returnDate: '2026-01-30', returnTime: '16:30',
+    returnedBy: 'Angela Reyes', receivedBy: 'Marco Dela Cruz',
+    conditionOnReturn: 'Good', inspectionNotes: 'All accessories complete. Minor scratch on lid noted.',
+    createdAt: '2026-01-24T10:00:00Z',
+  },
+]
+
+export const MOCK_ASSET_HISTORY: AssetHistory[] = [
+  // IT-LAPTOP-2026-0001
+  { id: 'hist_1', assetId: 'ast_1', assetTag: 'IT-LAPTOP-2026-0001', assetName: 'Dell Latitude 5420', activityType: 'REGISTERED', user: 'Marco Dela Cruz', department: 'Asset Management', custodian: 'IT Services', startDate: '2026-01-20', status: 'AVAILABLE', remarks: 'Asset registered and tagged. All inclusions verified.', createdAt: '2026-01-20T08:00:00Z' },
+  { id: 'hist_2', assetId: 'ast_1', assetTag: 'IT-LAPTOP-2026-0001', assetName: 'Dell Latitude 5420', activityType: 'BORROWED', user: 'Angela Reyes', department: 'Admissions Office', custodian: 'Ana Admissions', startDate: '2026-01-25', endDate: '2026-01-30', duration: '5 days', location: 'Admissions Office', status: 'BORROWED', remarks: 'Borrowed for enrollment period processing.', createdAt: '2026-01-25T09:00:00Z' },
+  { id: 'hist_3', assetId: 'ast_1', assetTag: 'IT-LAPTOP-2026-0001', assetName: 'Dell Latitude 5420', activityType: 'RETURNED', user: 'Angela Reyes', department: 'Admissions Office', custodian: 'Marco Dela Cruz', startDate: '2026-01-30', status: 'AVAILABLE', remarks: 'Returned in good condition. Minor scratch on lid noted.', createdAt: '2026-01-30T16:30:00Z' },
+  // IT-LAPTOP-2026-0002
+  { id: 'hist_4', assetId: 'ast_2', assetTag: 'IT-LAPTOP-2026-0002', assetName: 'Lenovo ThinkPad X1 Carbon', activityType: 'REGISTERED', user: 'Marco Dela Cruz', department: 'Asset Management', custodian: 'IT Services', startDate: '2026-01-20', status: 'AVAILABLE', remarks: 'Asset registered and tagged.', createdAt: '2026-01-20T09:00:00Z' },
+  { id: 'hist_5', assetId: 'ast_2', assetTag: 'IT-LAPTOP-2026-0002', assetName: 'Lenovo ThinkPad X1 Carbon', activityType: 'DEPLOYED', user: 'Prof. Roberto Santos', department: 'College of Computing', custodian: 'Prof. Roberto Santos', startDate: '2026-02-01', location: 'IT Building Room 102', status: 'DEPLOYED', remarks: 'Long-term deployment as primary teaching laptop.', createdAt: '2026-02-01T08:00:00Z' },
+  // IT-PROJ-2026-0001
+  { id: 'hist_6', assetId: 'ast_3', assetTag: 'IT-PROJ-2026-0001', assetName: 'Epson EB-X51 Projector', activityType: 'REGISTERED', user: 'Marco Dela Cruz', department: 'Asset Management', custodian: 'AV Equipment Room', startDate: '2025-06-05', status: 'AVAILABLE', remarks: 'Projector registered with all accessories.', createdAt: '2025-06-05T08:00:00Z' },
+  { id: 'hist_7', assetId: 'ast_3', assetTag: 'IT-PROJ-2026-0001', assetName: 'Epson EB-X51 Projector', activityType: 'BORROWED', user: 'Juan Santos', department: 'College of Business', custodian: 'Prof. Maria Reyes', startDate: '2026-02-10', location: 'Business Hall Conference Room', status: 'BORROWED', remarks: 'Borrowed for faculty summit presentation.', createdAt: '2026-02-09T14:00:00Z' },
+  // IT-TAB-2026-0001
+  { id: 'hist_8', assetId: 'ast_7', assetTag: 'IT-TAB-2026-0001', assetName: 'Apple iPad Air 5th Gen', activityType: 'REGISTERED', user: 'Marco Dela Cruz', department: 'Asset Management', custodian: 'Dr. Maria Santos', startDate: '2025-08-05', status: 'AVAILABLE', remarks: 'iPad registered with Apple Pencil and Smart Folio.', createdAt: '2025-08-05T08:00:00Z' },
+  { id: 'hist_9', assetId: 'ast_7', assetTag: 'IT-TAB-2026-0001', assetName: 'Apple iPad Air 5th Gen', activityType: 'MAINTENANCE_STARTED', user: 'Marco Dela Cruz', department: 'Asset Management', custodian: 'IT Services', startDate: '2026-02-08', location: 'IT Services Repair Center', status: 'UNDER_MAINTENANCE', remarks: 'Battery swelling reported by Dr. Maria Santos. Sent for battery replacement.', createdAt: '2026-02-08T09:00:00Z' },
+]
+
+export const MOCK_CONSUMABLES: Consumable[] = [
+  {
+    id: 'cons_1', name: 'Bond Paper (Short)', category: 'Office Supplies',
+    description: 'Short bond paper, 70gsm, 500 sheets per ream',
+    unit: 'REAM', quantity: 18, lowStockThreshold: 20, overstockThreshold: 200,
+    purchaseDate: '2026-01-10', supplier: 'National Bookstore', cost: 280,
+    createdAt: '2026-01-10T08:00:00Z',
+  },
+  {
+    id: 'cons_2', name: 'Bond Paper (A4)', category: 'Office Supplies',
+    description: 'A4 bond paper, 80gsm, 500 sheets per ream',
+    unit: 'REAM', quantity: 45, lowStockThreshold: 20, overstockThreshold: 150,
+    purchaseDate: '2026-01-10', supplier: 'National Bookstore', cost: 300,
+    createdAt: '2026-01-10T08:00:00Z',
+  },
+  {
+    id: 'cons_3', name: 'Printer Ink (Black)', category: 'Printer Supplies',
+    description: 'Compatible ink cartridge for Canon LBP2900B — black toner',
+    unit: 'PIECE', quantity: 4, lowStockThreshold: 5, overstockThreshold: 30,
+    purchaseDate: '2026-01-15', supplier: 'Canon Service Center', cost: 2200,
+    createdAt: '2026-01-15T08:00:00Z',
+  },
+  {
+    id: 'cons_4', name: 'Ballpen (Black)', category: 'Office Supplies',
+    description: 'Ballpen black ink, 0.7mm, box of 12 pieces',
+    unit: 'BOX', quantity: 8, lowStockThreshold: 5, overstockThreshold: 50,
+    purchaseDate: '2026-01-10', supplier: 'School Supplies Store', cost: 85,
+    createdAt: '2026-01-10T08:00:00Z',
+  },
+  {
+    id: 'cons_5', name: 'Disinfectant Spray', category: 'Cleaning Materials',
+    description: 'Multi-surface disinfectant spray, 500ml bottle',
+    unit: 'BOTTLE', quantity: 12, lowStockThreshold: 10, overstockThreshold: 60,
+    purchaseDate: '2026-01-20', supplier: 'Cleaning Supplies Depot', cost: 180,
+    createdAt: '2026-01-20T08:00:00Z',
+  },
+]
+
+export const MOCK_CONSUMABLE_TRANSACTIONS: ConsumableTransaction[] = [
+  { id: 'ctx_1', consumableId: 'cons_1', consumableName: 'Bond Paper (Short)', type: 'ISSUE', quantity: 5, requestedBy: 'Rosa Registrar', department: 'Office of the Registrar', purpose: 'Document printing for enrollment period', balanceBefore: 23, balanceAfter: 18, createdAt: '2026-02-05T09:00:00Z' },
+  { id: 'ctx_2', consumableId: 'cons_3', consumableName: 'Printer Ink (Black)', type: 'ISSUE', quantity: 1, requestedBy: 'Rosa Registrar', department: 'Office of the Registrar', purpose: 'Replacement for depleted toner', balanceBefore: 5, balanceAfter: 4, createdAt: '2026-02-03T10:00:00Z' },
+  { id: 'ctx_3', consumableId: 'cons_2', consumableName: 'Bond Paper (A4)', type: 'RESTOCK', quantity: 20, requestedBy: 'Marco Dela Cruz', department: 'Asset Management', purpose: 'Monthly restocking from procurement', balanceBefore: 25, balanceAfter: 45, createdAt: '2026-02-01T08:00:00Z' },
+  { id: 'ctx_4', consumableId: 'cons_4', consumableName: 'Ballpen (Black)', type: 'ISSUE', quantity: 2, requestedBy: 'Ana Admissions', department: 'Admissions Office', purpose: 'Applicant registration desk', balanceBefore: 10, balanceAfter: 8, createdAt: '2026-01-28T13:00:00Z' },
+  { id: 'ctx_5', consumableId: 'cons_1', consumableName: 'Bond Paper (Short)', type: 'ISSUE', quantity: 3, requestedBy: 'Hannah Rodriguez', department: 'Human Resources', purpose: 'Employee contract printing', balanceBefore: 26, balanceAfter: 23, createdAt: '2026-01-25T14:00:00Z' },
+  { id: 'ctx_6', consumableId: 'cons_5', consumableName: 'Disinfectant Spray', type: 'ISSUE', quantity: 3, requestedBy: 'Marco Dela Cruz', department: 'Asset Management', purpose: 'Laboratory and classroom cleaning', balanceBefore: 15, balanceAfter: 12, createdAt: '2026-01-22T09:00:00Z' },
+]
+
+export const MOCK_MAINTENANCE_LOGS: MaintenanceLog[] = [
+  {
+    id: 'mnt_1', assetId: 'ast_7', assetTag: 'IT-TAB-2026-0001', assetName: 'Apple iPad Air 5th Gen',
+    maintenanceType: 'REPAIR', status: 'IN_PROGRESS',
+    description: 'Battery swelling reported. Screen shows slight distortion near bottom. Requires battery replacement.',
+    reportedBy: 'Dr. Maria Santos', assignedTo: 'Apple Authorized Service',
+    startDate: '2026-02-08', cost: 4500,
+    notes: 'Unit sent to Apple Premium Service Center — Quezon City branch. ETA: 7-10 business days.',
+    createdAt: '2026-02-08T09:00:00Z',
+  },
+  {
+    id: 'mnt_2', assetId: 'ast_4', assetTag: 'IT-PRINT-2026-0001', assetName: 'Canon LBP2900B Printer',
+    maintenanceType: 'REPAIR', status: 'COMPLETED',
+    description: 'Paper jam occurring frequently. Paper feed roller needs cleaning and replacement.',
+    reportedBy: 'Rosa Registrar', assignedTo: 'Canon Service Center',
+    startDate: '2025-11-10', completionDate: '2025-11-14', cost: 850,
+    notes: 'Paper feed roller replaced. Drum unit cleaned. Test prints confirmed normal operation.',
+    createdAt: '2025-11-10T10:00:00Z',
+  },
+  {
+    id: 'mnt_3', assetId: 'ast_1', assetTag: 'IT-LAPTOP-2026-0001', assetName: 'Dell Latitude 5420',
+    maintenanceType: 'PREVENTIVE', status: 'COMPLETED',
+    description: 'Scheduled preventive maintenance — dust cleaning, thermal paste replacement, software updates.',
+    reportedBy: 'Marco Dela Cruz', assignedTo: 'IT Services',
+    startDate: '2026-02-05', completionDate: '2026-02-05', cost: 0,
+    notes: 'Internal cleaning completed. Thermal paste replaced. All drivers and OS updated. Fan noise resolved.',
+    createdAt: '2026-02-05T08:00:00Z',
+  },
+]
+
+export const MOCK_ASSET_TAG_FORMATS: AssetTagFormat[] = [
+  {
+    id: 'fmt_1', name: 'Default IT Format',
+    components: [
+      { type: 'PREFIX', value: 'IT' },
+      { type: 'CATEGORY' },
+      { type: 'YEAR' },
+      { type: 'SEQUENCE', width: 4 },
+    ],
+    separator: '-', preview: 'IT-LAPTOP-2026-0001', isDefault: true,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'fmt_2', name: 'Department Code Format',
+    components: [
+      { type: 'DEPT_CODE' },
+      { type: 'CATEGORY' },
+      { type: 'YEAR' },
+      { type: 'SEQUENCE', width: 4 },
+    ],
+    separator: '-', preview: 'COC-LAPTOP-2026-0001', isDefault: false,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+]
+
+// ─── Financial Operations Suite ───────────────────────────────────────────────
+
+export const MOCK_VENDORS: Vendor[] = [
+  { id:'v_1', name:'TechSupply Philippines', contactPerson:'Jose Reyes', phone:'09171234567', email:'sales@techsupply.ph', address:'Quezon City', category:'IT', status:'ACTIVE', tin:'123-456-789', schoolId:'school_1', createdAt:'2024-01-15T00:00:00Z' },
+  { id:'v_2', name:'MediSource Corp', contactPerson:'Maria Santos', phone:'09182345678', email:'orders@medisource.com', address:'Makati City', category:'MEDICAL', status:'ACTIVE', tin:'234-567-890', schoolId:'school_1', createdAt:'2024-02-01T00:00:00Z' },
+  { id:'v_3', name:'OfficePlus Inc', contactPerson:'Pedro Cruz', phone:'09193456789', email:'pedro@officeplus.com', address:'Mandaluyong', category:'SUPPLIES', status:'ACTIVE', tin:'345-678-901', schoolId:'school_1', createdAt:'2024-01-20T00:00:00Z' },
+  { id:'v_4', name:'BuildRight Construction', contactPerson:'Ana Villanueva', phone:'09204567890', email:'ana@buildright.ph', address:'Pasig City', category:'CONSTRUCTION', status:'ACTIVE', tin:'456-789-012', schoolId:'school_1', createdAt:'2024-03-10T00:00:00Z' },
+  { id:'v_5', name:'FoodPro Catering', contactPerson:'Lito Mendoza', phone:'09215678901', email:'lito@foodpro.ph', address:'Taguig City', category:'FOOD', status:'INACTIVE', tin:'567-890-123', schoolId:'school_1', createdAt:'2024-04-05T00:00:00Z' },
+]
+
+export const MOCK_PURCHASE_REQUESTS: PurchaseRequest[] = [
+  {
+    id:'pr_1', prNumber:'PR-2025-00001', title:'Laboratory Equipment Procurement',
+    department:'College of Computing', requestedBy:'u_dean_computing', requestedByName:'Dean Computing',
+    items:[
+      { id:'pri_1a', name:'Desktop Computer (Core i7)', quantity:10, unit:'unit', estimatedCost:45000, description:'For computer lab upgrade' },
+      { id:'pri_1b', name:'24" Monitor', quantity:10, unit:'unit', estimatedCost:8500, description:'Full HD monitors' },
+    ],
+    totalAmount:535000, purpose:'Upgrade computer laboratory for AY 2025-2026',
+    priority:'HIGH', status:'APPROVED',
+    budgetId:'bud_1', reservationId:'br_1',
+    approvalChain:[
+      { step:1, role:'ACCOUNTING', approverName:'Clara Accounting', status:'APPROVED', timestamp:'2025-01-10T09:00:00Z' },
+      { step:2, role:'PURCHASING_OFFICER', approverName:'Mark Purchasing', status:'APPROVED', timestamp:'2025-01-11T10:00:00Z' },
+    ],
+    purchaseOrderId:'po_1',
+    schoolId:'school_1', createdAt:'2025-01-08T00:00:00Z', updatedAt:'2025-01-11T00:00:00Z',
+    submittedAt:'2025-01-08T08:00:00Z', approvedAt:'2025-01-11T10:00:00Z',
+  },
+  {
+    id:'pr_2', prNumber:'PR-2025-00002', title:'Medical Supplies Restock',
+    department:'College of Nursing', requestedBy:'u_dean_nursing', requestedByName:'Dean Nursing',
+    items:[
+      { id:'pri_2a', name:'Surgical Gloves (Box)', quantity:100, unit:'box', estimatedCost:250, description:'Latex-free' },
+      { id:'pri_2b', name:'Face Mask N95', quantity:200, unit:'box', estimatedCost:800, description:'NIOSH certified' },
+      { id:'pri_2c', name:'Simulation Manikin', quantity:2, unit:'unit', estimatedCost:45000, description:'For clinical skills lab' },
+    ],
+    totalAmount:251000, purpose:'Clinical lab supplies for 1st Semester 2025-2026',
+    priority:'URGENT', status:'PROCUREMENT_ONGOING',
+    budgetId:'bud_3', reservationId:'br_2',
+    approvalChain:[
+      { step:1, role:'ACCOUNTING', approverName:'Clara Accounting', status:'APPROVED', timestamp:'2025-02-05T09:00:00Z' },
+      { step:2, role:'PURCHASING_OFFICER', approverName:'Mark Purchasing', status:'APPROVED', timestamp:'2025-02-06T10:00:00Z' },
+    ],
+    purchaseOrderId:'po_2',
+    schoolId:'school_1', createdAt:'2025-02-03T00:00:00Z', updatedAt:'2025-02-06T00:00:00Z',
+    submittedAt:'2025-02-03T08:00:00Z', approvedAt:'2025-02-06T10:00:00Z',
+  },
+  {
+    id:'pr_3', prNumber:'PR-2025-00003', title:'Office Supplies — Business Dept',
+    department:'College of Business', requestedBy:'u_dean_business', requestedByName:'Dean Business',
+    items:[
+      { id:'pri_3a', name:'Bond Paper (Ream)', quantity:50, unit:'ream', estimatedCost:280, description:'A4, 80gsm' },
+      { id:'pri_3b', name:'Printer Ink Set', quantity:5, unit:'set', estimatedCost:1200, description:'For department printers' },
+    ],
+    totalAmount:20000, purpose:'Monthly office supplies for department operations',
+    priority:'NORMAL', status:'SUBMITTED',
+    budgetId:'bud_2', reservationId:'br_3',
+    approvalChain:[
+      { step:1, role:'ACCOUNTING', status:'PENDING' },
+      { step:2, role:'PURCHASING_OFFICER', status:'PENDING' },
+    ],
+    schoolId:'school_1', createdAt:'2025-03-01T00:00:00Z', updatedAt:'2025-03-01T00:00:00Z',
+    submittedAt:'2025-03-01T08:00:00Z',
+  },
+  {
+    id:'pr_4', prNumber:'PR-2025-00004', title:'Theater Equipment — Arts Dept',
+    department:'Arts & Sciences', requestedBy:'u_dean_arts', requestedByName:'Dean Arts',
+    items:[
+      { id:'pri_4a', name:'Stage Lighting Kit', quantity:1, unit:'set', estimatedCost:35000, description:'LED stage lights' },
+    ],
+    totalAmount:35000, purpose:'Theater production upgrade for performing arts program',
+    priority:'LOW', status:'UNDER_REVIEW',
+    budgetId:'bud_4', reservationId:'br_4',
+    approvalChain:[
+      { step:1, role:'ACCOUNTING', approverName:'Clara Accounting', status:'APPROVED', timestamp:'2025-03-05T09:00:00Z' },
+      { step:2, role:'PURCHASING_OFFICER', status:'PENDING' },
+    ],
+    schoolId:'school_1', createdAt:'2025-03-03T00:00:00Z', updatedAt:'2025-03-05T00:00:00Z',
+    submittedAt:'2025-03-03T08:00:00Z',
+  },
+  {
+    id:'pr_5', prNumber:'PR-2025-00005', title:'Network Infrastructure Upgrade',
+    department:'College of Computing', requestedBy:'u_dean_computing', requestedByName:'Dean Computing',
+    items:[
+      { id:'pri_5a', name:'Managed Switch 48-port', quantity:3, unit:'unit', estimatedCost:28000, description:'Cisco Catalyst' },
+      { id:'pri_5b', name:'CAT6 Cable (Box)', quantity:5, unit:'box', estimatedCost:3500, description:'305m per box' },
+    ],
+    totalAmount:101500, purpose:'Upgrade campus network infrastructure',
+    priority:'HIGH', status:'REJECTED',
+    budgetId:'bud_1',
+    approvalChain:[
+      { step:1, role:'ACCOUNTING', approverName:'Clara Accounting', status:'REJECTED', comments:'Exceeds remaining Q1 budget allocation', timestamp:'2025-03-10T09:00:00Z' },
+    ],
+    rejectionReason:'Exceeds remaining Q1 budget allocation. Please resubmit in Q2.',
+    rejectedAt:'2025-03-10T09:00:00Z',
+    schoolId:'school_1', createdAt:'2025-03-08T00:00:00Z', updatedAt:'2025-03-10T00:00:00Z',
+    submittedAt:'2025-03-08T08:00:00Z',
+  },
+]
+
+export const MOCK_PURCHASE_ORDERS: PurchaseOrder[] = [
+  {
+    id:'po_1', poNumber:'PO-2025-00001', prId:'pr_1', vendorId:'v_1', vendorName:'TechSupply Philippines',
+    items:[
+      { id:'poi_1a', name:'Desktop Computer (Core i7)', quantity:10, unit:'unit', unitPrice:45000, total:450000 },
+      { id:'poi_1b', name:'24" Monitor', quantity:10, unit:'unit', unitPrice:8500, total:85000 },
+    ],
+    totalAmount:535000, status:'DELIVERED', deliveryDate:'2025-02-15', deliveredAt:'2025-02-14T14:00:00Z',
+    terms:'Net 30 days', notes:'All items received in good condition.',
+    createdBy:'Mark Purchasing', schoolId:'school_1', createdAt:'2025-01-15T00:00:00Z', updatedAt:'2025-02-14T00:00:00Z',
+  },
+  {
+    id:'po_2', poNumber:'PO-2025-00002', prId:'pr_2', vendorId:'v_2', vendorName:'MediSource Corp',
+    items:[
+      { id:'poi_2a', name:'Surgical Gloves (Box)', quantity:100, unit:'box', unitPrice:250, total:25000 },
+      { id:'poi_2b', name:'Face Mask N95', quantity:200, unit:'box', unitPrice:800, total:160000 },
+      { id:'poi_2c', name:'Simulation Manikin', quantity:2, unit:'unit', unitPrice:45000, total:90000 },
+    ],
+    totalAmount:275000, status:'CONFIRMED', deliveryDate:'2025-03-20',
+    terms:'50% downpayment, 50% on delivery',
+    createdBy:'Mark Purchasing', schoolId:'school_1', createdAt:'2025-02-10T00:00:00Z', updatedAt:'2025-02-10T00:00:00Z',
+  },
+]
+
+export const MOCK_OFFICIAL_RECEIPTS: OfficialReceipt[] = [
+  { id:'or_1', orNumber:'OR-2025-00001', studentId:'st_001', studentName:'Angela Reyes', studentNo:'2025-00001', amount:28500, paymentType:'Tuition Fee', semesterId:'sem_1', soaId:'soa_001', issuedBy:'Treasury Staff', issuedAt:'2025-08-20T10:00:00Z', schoolId:'school_1' },
+  { id:'or_2', orNumber:'OR-2025-00002', studentId:'st_002', studentName:'Marco Santos', studentNo:'2025-00002', amount:28500, paymentType:'Tuition Fee', semesterId:'sem_1', issuedBy:'Treasury Staff', issuedAt:'2025-08-21T09:30:00Z', schoolId:'school_1' },
+  { id:'or_3', orNumber:'OR-2025-00003', studentId:'st_003', studentName:'Bianca Garcia', studentNo:'2025-00003', amount:15000, paymentType:'Partial Payment', semesterId:'sem_1', issuedBy:'Treasury Staff', issuedAt:'2025-08-21T11:00:00Z', schoolId:'school_1' },
+  { id:'or_4', orNumber:'OR-2025-00004', studentId:'st_004', studentName:'Joshua Cruz', studentNo:'2025-00004', amount:28500, paymentType:'Tuition Fee', semesterId:'sem_1', issuedBy:'Treasury Staff', issuedAt:'2025-08-22T08:45:00Z', schoolId:'school_1' },
+  { id:'or_5', orNumber:'OR-2025-00005', studentId:'st_005', studentName:'Katrina Villanueva', studentNo:'2025-00005', amount:5000, paymentType:'Miscellaneous Fee', semesterId:'sem_1', issuedBy:'Treasury Staff', issuedAt:'2025-08-22T14:20:00Z', schoolId:'school_1' },
+]
+
+let _orSeq = 6
+export function nextORNumber(): string { return `OR-2025-${String(_orSeq++).padStart(5,'0')}` }
+
+export const MOCK_CASHFLOW: CashflowEntry[] = [
+  { id:'cf_1', type:'INFLOW', amount:285000, description:'Tuition collection batch — August 20', reference:'OR-2025-00001', category:'Tuition', date:'2025-08-20', schoolId:'school_1', createdAt:'2025-08-20T18:00:00Z' },
+  { id:'cf_2', type:'OUTFLOW', amount:85000, description:'Lab equipment — Computing Dept', reference:'PO-2025-00001', category:'Procurement', date:'2025-01-15', schoolId:'school_1', createdAt:'2025-01-15T18:00:00Z' },
+  { id:'cf_3', type:'INFLOW', amount:142500, description:'Tuition collection batch — August 21', reference:'OR-2025-00002', category:'Tuition', date:'2025-08-21', schoolId:'school_1', createdAt:'2025-08-21T18:00:00Z' },
+  { id:'cf_4', type:'OUTFLOW', amount:120000, description:'Medical supplies — Nursing Dept', reference:'PO-2025-00002', category:'Procurement', date:'2025-02-10', schoolId:'school_1', createdAt:'2025-02-10T18:00:00Z' },
+  { id:'cf_5', type:'OUTFLOW', amount:380000, description:'Faculty payroll — January 2025', reference:'PAY-2025-01', category:'Payroll', date:'2025-01-31', schoolId:'school_1', createdAt:'2025-01-31T18:00:00Z' },
+  { id:'cf_6', type:'INFLOW', amount:95000, description:'Miscellaneous fees collection', reference:'OR-2025-00005', category:'Miscellaneous', date:'2025-08-22', schoolId:'school_1', createdAt:'2025-08-22T18:00:00Z' },
+  { id:'cf_7', type:'OUTFLOW', amount:45000, description:'Utilities — February 2025', reference:'UTIL-2025-02', category:'Utilities', date:'2025-02-28', schoolId:'school_1', createdAt:'2025-02-28T18:00:00Z' },
+  { id:'cf_8', type:'OUTFLOW', amount:380000, description:'Faculty payroll — February 2025', reference:'PAY-2025-02', category:'Payroll', date:'2025-02-28', schoolId:'school_1', createdAt:'2025-02-28T18:00:00Z' },
+]
+
+export const MOCK_FIN_EXPENSES: FinancialExpense[] = [
+  { id:'fe_1', title:'Lab Equipment Purchase', category:'PROCUREMENT', department:'College of Computing', amount:535000, vendor:'TechSupply Philippines', date:'2025-01-15', description:'Computer lab upgrade — 10 desktops + monitors', prId:'pr_1', poId:'po_1', status:'PAID', approvedBy:'Clara Accounting', approvedAt:'2025-01-11T10:00:00Z', schoolId:'school_1', createdAt:'2025-01-15T00:00:00Z', createdBy:'Mark Purchasing' },
+  { id:'fe_2', title:'Medical Supplies Procurement', category:'PROCUREMENT', department:'College of Nursing', amount:275000, vendor:'MediSource Corp', date:'2025-02-10', description:'Clinical lab supplies and simulation manikins', prId:'pr_2', poId:'po_2', status:'APPROVED', approvedBy:'Clara Accounting', approvedAt:'2025-02-06T10:00:00Z', schoolId:'school_1', createdAt:'2025-02-10T00:00:00Z', createdBy:'Mark Purchasing' },
+  { id:'fe_3', title:'Faculty Payroll — January 2025', category:'PAYROLL', amount:380000, date:'2025-01-31', description:'Monthly faculty and staff payroll', status:'PAID', approvedBy:'Clara Accounting', approvedAt:'2025-01-30T09:00:00Z', schoolId:'school_1', createdAt:'2025-01-31T00:00:00Z', createdBy:'Clara Accounting' },
+  { id:'fe_4', title:'Utilities — February 2025', category:'UTILITIES', amount:45000, date:'2025-02-28', description:'Electricity, water, internet', status:'PAID', approvedBy:'Clara Accounting', approvedAt:'2025-02-27T09:00:00Z', schoolId:'school_1', createdAt:'2025-02-28T00:00:00Z', createdBy:'Clara Accounting' },
+  { id:'fe_5', title:'Office Supplies — Q1', category:'OPERATIONAL', department:'Administration', amount:18500, vendor:'OfficePlus Inc', date:'2025-01-10', description:'Stationery, paper, toner', status:'PAID', approvedBy:'Clara Accounting', approvedAt:'2025-01-09T09:00:00Z', schoolId:'school_1', createdAt:'2025-01-10T00:00:00Z', createdBy:'Clara Accounting' },
+]
+
+export const MOCK_BUDGET_RESERVATIONS: BudgetReservation[] = [
+  { id:'br_1', budgetId:'bud_1', prId:'pr_1', prNumber:'PR-2025-00001', department:'College of Computing', amount:535000, status:'CONVERTED', createdAt:'2025-01-08T08:00:00Z', convertedAt:'2025-01-15T00:00:00Z' },
+  { id:'br_2', budgetId:'bud_3', prId:'pr_2', prNumber:'PR-2025-00002', department:'College of Nursing', amount:275000, status:'ACTIVE', createdAt:'2025-02-03T08:00:00Z' },
+  { id:'br_3', budgetId:'bud_2', prId:'pr_3', prNumber:'PR-2025-00003', department:'College of Business', amount:20000, status:'ACTIVE', createdAt:'2025-03-01T08:00:00Z' },
+  { id:'br_4', budgetId:'bud_4', prId:'pr_4', prNumber:'PR-2025-00004', department:'Arts & Sciences', amount:35000, status:'ACTIVE', createdAt:'2025-03-03T08:00:00Z' },
+]
+
+// ─── Universal Requests ───────────────────────────────────────────────────────
+
+export const MOCK_REQUESTS: UniversalRequest[] = [
+  {
+    id: 'req_1', reqNumber: 'REQ-2025-00001', category: 'LEAVE', type: 'VACATION_LEAVE',
+    title: 'Vacation Leave — May 20–22', status: 'APPROVED', priority: 'NORMAL',
+    submittedBy: 'u_teacher', submittedByName: 'Prof. Santos', submittedByRole: 'TEACHER', portal: 'teacher',
+    championDept: 'HR', assignedToName: 'HR Staff',
+    formData: { leaveType: 'VACATION_LEAVE', startDate: '2025-05-20', endDate: '2025-05-22', reason: 'Family vacation', emergencyContact: '09171234567' },
+    activities: [
+      { id: 'ra_1a', action: 'Request Submitted', performedBy: 'Prof. Santos', performedByRole: 'TEACHER', timestamp: '2025-05-10T09:00:00Z' },
+      { id: 'ra_1b', action: 'Under Review by HR', performedBy: 'HR Staff', performedByRole: 'HR_STAFF', timestamp: '2025-05-11T10:00:00Z' },
+      { id: 'ra_1c', action: 'Approved', performedBy: 'HR Staff', performedByRole: 'HR_STAFF', timestamp: '2025-05-12T09:30:00Z', remarks: 'Approved. Enjoy your leave.' },
+    ],
+    schoolId: 'school_1', createdAt: '2025-05-10T09:00:00Z', updatedAt: '2025-05-12T09:30:00Z',
+    submittedAt: '2025-05-10T09:00:00Z',
+  },
+  {
+    id: 'req_2', reqNumber: 'REQ-2025-00002', category: 'ASSET', type: 'LAPTOP_REQUEST',
+    title: 'Laptop Request for Online Teaching', status: 'SUBMITTED', priority: 'HIGH',
+    submittedBy: 'u_teacher', submittedByName: 'Prof. Santos', submittedByRole: 'TEACHER', portal: 'teacher',
+    championDept: 'AMO', assignedToName: 'Asset Management',
+    formData: { assetType: 'Laptop', purpose: 'Online teaching and grading', deploymentDate: '2025-06-01', returnDate: '2025-12-31', department: 'College of Computing', justification: 'Current unit is malfunctioning' },
+    activities: [
+      { id: 'ra_2a', action: 'Request Submitted', performedBy: 'Prof. Santos', performedByRole: 'TEACHER', timestamp: '2025-05-13T08:00:00Z' },
+    ],
+    schoolId: 'school_1', createdAt: '2025-05-13T08:00:00Z', updatedAt: '2025-05-13T08:00:00Z',
+    submittedAt: '2025-05-13T08:00:00Z',
+  },
+  {
+    id: 'req_3', reqNumber: 'REQ-2025-00003', category: 'LEAVE', type: 'SICK_LEAVE',
+    title: 'Sick Leave — May 15', status: 'UNDER_REVIEW', priority: 'NORMAL',
+    submittedBy: 'u_hr', submittedByName: 'HR Staff', submittedByRole: 'HR_STAFF', portal: 'staff',
+    championDept: 'HR', assignedToName: 'HR Staff',
+    formData: { leaveType: 'SICK_LEAVE', startDate: '2025-05-15', endDate: '2025-05-15', reason: 'Fever and flu', emergencyContact: '09182345678' },
+    activities: [
+      { id: 'ra_3a', action: 'Request Submitted', performedBy: 'HR Staff', performedByRole: 'HR_STAFF', timestamp: '2025-05-14T07:30:00Z' },
+      { id: 'ra_3b', action: 'Under Review', performedBy: 'Admin', performedByRole: 'SUPER_ADMIN', timestamp: '2025-05-14T09:00:00Z' },
+    ],
+    schoolId: 'school_1', createdAt: '2025-05-14T07:30:00Z', updatedAt: '2025-05-14T09:00:00Z',
+    submittedAt: '2025-05-14T07:30:00Z',
+  },
+  {
+    id: 'req_4', reqNumber: 'REQ-2025-00004', category: 'ASSET', type: 'PC_REQUEST',
+    title: 'Desktop PC for Online Classes', status: 'SUBMITTED', priority: 'NORMAL',
+    submittedBy: 'u_student', submittedByName: 'Ethan Dela Cruz', submittedByRole: 'STUDENT', portal: 'student',
+    championDept: 'AMO', assignedToName: 'Asset Management',
+    formData: { assetType: 'Desktop PC', purpose: 'Online classes and research', deploymentDate: '2025-05-20', returnDate: '2025-08-31', department: 'College of Computing', justification: 'No personal computer for online classes' },
+    activities: [
+      { id: 'ra_4a', action: 'Request Submitted', performedBy: 'Ethan Dela Cruz', performedByRole: 'STUDENT', timestamp: '2025-05-13T14:00:00Z' },
+    ],
+    schoolId: 'school_1', createdAt: '2025-05-13T14:00:00Z', updatedAt: '2025-05-13T14:00:00Z',
+    submittedAt: '2025-05-13T14:00:00Z',
+  },
+  {
+    id: 'req_5', reqNumber: 'REQ-2025-00005', category: 'PURCHASE', type: 'SUPPLY_REQUEST',
+    title: 'Whiteboard Markers & Supplies', status: 'COMPLETED', priority: 'LOW',
+    submittedBy: 'u_registrar', submittedByName: 'Registrar', submittedByRole: 'REGISTRAR', portal: 'staff',
+    championDept: 'PURCHASING', assignedToName: 'Purchasing Officer',
+    formData: { itemName: 'Whiteboard Markers (Box)', quantity: '10', estimatedCost: '2500', purpose: 'Daily classroom use', priority: 'LOW' },
+    activities: [
+      { id: 'ra_5a', action: 'Request Submitted', performedBy: 'Registrar', performedByRole: 'REGISTRAR', timestamp: '2025-04-01T08:00:00Z' },
+      { id: 'ra_5b', action: 'Approved by Purchasing', performedBy: 'Mark Purchasing', performedByRole: 'PURCHASING_OFFICER', timestamp: '2025-04-02T09:00:00Z' },
+      { id: 'ra_5c', action: 'Completed — Items Delivered', performedBy: 'Mark Purchasing', performedByRole: 'PURCHASING_OFFICER', timestamp: '2025-04-05T14:00:00Z', remarks: 'All items delivered and signed for.' },
+    ],
+    schoolId: 'school_1', createdAt: '2025-04-01T08:00:00Z', updatedAt: '2025-04-05T14:00:00Z',
+    submittedAt: '2025-04-01T08:00:00Z', completedAt: '2025-04-05T14:00:00Z',
+  },
+]
+
+let _reqSeq = 6
+export function nextReqNumber(): string { return `REQ-2025-${String(_reqSeq++).padStart(5, '0')}` }
+
+// ─── Support Center ───────────────────────────────────────────────────────────
+
+function slaDeadline(createdAt: string, priority: TicketPriority): string {
+  const hours = { LOW: 48, MEDIUM: 24, HIGH: 8, CRITICAL: 1 }
+  const d = new Date(createdAt)
+  d.setHours(d.getHours() + hours[priority])
+  return d.toISOString()
+}
+
+export const MOCK_TICKETS: SupportTicket[] = [
+  {
+    id: 'tkt_1', ticketNumber: 'TKT-2025-00001',
+    subject: 'Cannot access LMS — Quiz not loading',
+    description: 'I am unable to access my quiz in CS101. The page shows a blank screen after clicking the quiz link. This has been happening since yesterday and the quiz deadline is tomorrow.',
+    category: 'LMS_ACCESS_ISSUE', department: 'ACADEMIC', status: 'IN_PROGRESS',
+    priority: 'HIGH',
+    submittedBy: 'u_student', submittedByName: 'Ethan Dela Cruz', submittedByRole: 'STUDENT', portal: 'student',
+    assignedTo: 'u_academic', assignedToName: 'Academic Admin',
+    replies: [
+      { id: 'tr_1a', ticketId: 'tkt_1', authorId: 'u_student', authorName: 'Ethan Dela Cruz', authorRole: 'STUDENT', content: 'I am unable to access my quiz in CS101. The page shows a blank screen after clicking the quiz link. This has been happening since yesterday and the quiz deadline is tomorrow.', isInternal: false, isStaff: false, createdAt: '2025-05-10T09:00:00Z' },
+      { id: 'tr_1b', ticketId: 'tkt_1', authorId: 'u_academic', authorName: 'Academic Admin', authorRole: 'ACADEMIC_ADMIN', content: 'Thank you for reaching out. We have received your concern and are investigating the issue with the LMS quiz loading. We will update you within the next few hours.', isInternal: false, isStaff: true, createdAt: '2025-05-10T10:30:00Z' },
+      { id: 'tr_1c', ticketId: 'tkt_1', authorId: 'u_academic', authorName: 'Academic Admin', authorRole: 'ACADEMIC_ADMIN', content: 'Internal: Checking with Prof. Santos if the quiz was published correctly. Possible browser cache issue.', isInternal: true, isStaff: true, createdAt: '2025-05-10T10:35:00Z' },
+    ],
+    slaDeadline: slaDeadline('2025-05-10T09:00:00Z', 'HIGH'),
+    firstResponseAt: '2025-05-10T10:30:00Z',
+    schoolId: 'school_1', createdAt: '2025-05-10T09:00:00Z', updatedAt: '2025-05-10T10:35:00Z',
+    tags: ['LMS', 'quiz', 'access'],
+  },
+  {
+    id: 'tkt_2', ticketNumber: 'TKT-2025-00002',
+    subject: 'Request for Official Transcript of Records',
+    description: 'I would like to request a copy of my Official Transcript of Records (TOR) for job application purposes. Please let me know the requirements and processing time.',
+    category: 'TOR_INQUIRY', department: 'REGISTRAR', status: 'OPEN',
+    priority: 'MEDIUM',
+    submittedBy: 'u_student', submittedByName: 'Ethan Dela Cruz', submittedByRole: 'STUDENT', portal: 'student',
+    replies: [
+      { id: 'tr_2a', ticketId: 'tkt_2', authorId: 'u_student', authorName: 'Ethan Dela Cruz', authorRole: 'STUDENT', content: 'I would like to request a copy of my Official Transcript of Records (TOR) for job application purposes.', isInternal: false, isStaff: false, createdAt: '2025-05-12T14:00:00Z' },
+    ],
+    slaDeadline: slaDeadline('2025-05-12T14:00:00Z', 'MEDIUM'),
+    schoolId: 'school_1', createdAt: '2025-05-12T14:00:00Z', updatedAt: '2025-05-12T14:00:00Z',
+    tags: ['TOR', 'documents'],
+  },
+  {
+    id: 'tkt_3', ticketNumber: 'TKT-2025-00003',
+    subject: 'Discrepancy in Final Grade — CS201',
+    description: 'My final grade in CS201 shows 72 (FAILED) but based on my computation using the grade criteria, I should have passed with a grade of 76. I am requesting a grade review.',
+    category: 'GRADES_CONCERN', department: 'ACADEMIC', status: 'UNDER_REVIEW',
+    priority: 'HIGH',
+    submittedBy: 'u_student', submittedByName: 'Ethan Dela Cruz', submittedByRole: 'STUDENT', portal: 'student',
+    assignedTo: 'u_academic', assignedToName: 'Academic Admin',
+    replies: [
+      { id: 'tr_3a', ticketId: 'tkt_3', authorId: 'u_student', authorName: 'Ethan Dela Cruz', authorRole: 'STUDENT', content: 'My final grade shows 72 but based on my computation I should have passed with 76.', isInternal: false, isStaff: false, createdAt: '2025-05-08T08:00:00Z' },
+      { id: 'tr_3b', ticketId: 'tkt_3', authorId: 'u_academic', authorName: 'Academic Admin', authorRole: 'ACADEMIC_ADMIN', content: 'We have received your grade concern and have forwarded it to Prof. Santos for review. Please allow 3-5 business days for a response.', isInternal: false, isStaff: true, createdAt: '2025-05-08T09:00:00Z' },
+    ],
+    slaDeadline: slaDeadline('2025-05-08T08:00:00Z', 'HIGH'),
+    firstResponseAt: '2025-05-08T09:00:00Z',
+    schoolId: 'school_1', createdAt: '2025-05-08T08:00:00Z', updatedAt: '2025-05-08T09:00:00Z',
+    tags: ['grades', 'review', 'CS201'],
+  },
+  {
+    id: 'tkt_4', ticketNumber: 'TKT-2025-00004',
+    subject: 'Payment Not Reflected in Account',
+    description: 'I paid my tuition fee last May 5, 2025 via GCash (Reference: GC20250505XXXX) but it is still not reflected in my student account. Please check the status.',
+    category: 'PAYMENT_CONCERN', department: 'TREASURY', status: 'RESOLVED',
+    priority: 'MEDIUM',
+    submittedBy: 'u_student', submittedByName: 'Ethan Dela Cruz', submittedByRole: 'STUDENT', portal: 'student',
+    assignedTo: 'u_treasury', assignedToName: 'Treasury Office',
+    replies: [
+      { id: 'tr_4a', ticketId: 'tkt_4', authorId: 'u_student', authorName: 'Ethan Dela Cruz', authorRole: 'STUDENT', content: 'Payment via GCash (Ref: GC20250505XXXX) not yet reflected in my account.', isInternal: false, isStaff: false, createdAt: '2025-05-06T10:00:00Z' },
+      { id: 'tr_4b', ticketId: 'tkt_4', authorId: 'u_treasury', authorName: 'Treasury Staff', authorRole: 'TREASURER', content: 'Thank you for the reference number. We have verified your payment and it has now been posted to your account. OR No. OR-2025-00006 has been issued.', isInternal: false, isStaff: true, createdAt: '2025-05-06T14:00:00Z' },
+    ],
+    slaDeadline: slaDeadline('2025-05-06T10:00:00Z', 'MEDIUM'),
+    firstResponseAt: '2025-05-06T14:00:00Z',
+    resolvedAt: '2025-05-06T14:00:00Z',
+    satisfaction: { rating: 5, comment: 'Very fast resolution! Thank you.', submittedAt: '2025-05-06T15:00:00Z' },
+    schoolId: 'school_1', createdAt: '2025-05-06T10:00:00Z', updatedAt: '2025-05-06T14:00:00Z',
+    tags: ['payment', 'GCash'],
+  },
+  {
+    id: 'tkt_5', ticketNumber: 'TKT-2025-00005',
+    subject: 'Cannot login to portal — account locked',
+    description: 'I am unable to login to my teacher portal account. The system says my account is locked. I have not changed my password recently.',
+    category: 'LOGIN_ISSUE', department: 'IT_SUPPORT', status: 'OPEN',
+    priority: 'HIGH',
+    submittedBy: 'u_teacher', submittedByName: 'Prof. Santos', submittedByRole: 'TEACHER', portal: 'teacher',
+    replies: [
+      { id: 'tr_5a', ticketId: 'tkt_5', authorId: 'u_teacher', authorName: 'Prof. Santos', authorRole: 'TEACHER', content: 'I cannot login. Account shows as locked.', isInternal: false, isStaff: false, createdAt: '2025-05-13T07:00:00Z' },
+    ],
+    slaDeadline: slaDeadline('2025-05-13T07:00:00Z', 'HIGH'),
+    schoolId: 'school_1', createdAt: '2025-05-13T07:00:00Z', updatedAt: '2025-05-13T07:00:00Z',
+    tags: ['login', 'account'],
+  },
+]
+
+let _tktSeq = 6
+export function nextTicketNumber(): string { return `TKT-2025-${String(_tktSeq++).padStart(5, '0')}` }
+
+export const MOCK_KB_ARTICLES: KBArticle[] = [
+  {
+    id: 'kb_1', title: 'How to Access Your LMS Courses', slug: 'lms-access-guide',
+    category: 'LMS', tags: ['LMS', 'courses', 'access'],
+    content: 'To access your courses:\n1. Log in to SchoolEco at your school portal.\n2. Click "My Subjects" in the left sidebar.\n3. Click any course card to enter the course.\n4. Access quizzes, assignments, and materials from the course page.\n\nIf you see a blank screen, try clearing your browser cache (Ctrl+Shift+Delete) and refreshing.',
+    views: 342, helpful: 87, notHelpful: 4, publishedAt: '2025-01-10T00:00:00Z', updatedAt: '2025-04-01T00:00:00Z',
+  },
+  {
+    id: 'kb_2', title: 'How to Request Official Documents (TOR, COR, Good Moral)', slug: 'official-documents-request',
+    category: 'Registrar', tags: ['TOR', 'COR', 'documents', 'registrar'],
+    content: 'To request official documents:\n1. Submit a ticket via Support Center → "TOR / Document Inquiry" category.\n2. Provide your Student ID and purpose of request.\n3. Processing time: 3–5 business days.\n4. Pick up at the Registrar\'s Office or request email delivery.\n\nRequired information: Full name, Student ID, purpose, date needed.',
+    views: 215, helpful: 71, notHelpful: 2, publishedAt: '2025-01-15T00:00:00Z', updatedAt: '2025-03-20T00:00:00Z',
+  },
+  {
+    id: 'kb_3', title: 'How to View and Pay Your Statement of Account', slug: 'soa-payment-guide',
+    category: 'Treasury', tags: ['SOA', 'payment', 'tuition'],
+    content: 'To view your Statement of Account:\n1. Go to Student Portal → "SOA" in the sidebar.\n2. Your current balance and payment history are shown.\n3. Accepted payment methods: Cash (Treasury Office), GCash, Online Banking.\n4. After payment, submit your proof of payment as a support ticket under "Payment Concern" for immediate posting.\n\nPayments are typically reflected within 24 hours.',
+    views: 189, helpful: 64, notHelpful: 1, publishedAt: '2025-02-01T00:00:00Z', updatedAt: '2025-04-10T00:00:00Z',
+  },
+  {
+    id: 'kb_4', title: 'How to Submit a Quiz or Assignment', slug: 'lms-submission-guide',
+    category: 'LMS', tags: ['quiz', 'assignment', 'LMS', 'submission'],
+    content: 'To take a quiz:\n1. Go to My Subjects → select your course.\n2. Click "Quizzes" in the course sidebar.\n3. Click "Take Assessment" on an open quiz.\n4. Answer all questions before the timer ends.\n5. Click "Submit Exam" to finalize.\n\nFor assignments:\n1. Go to Assignments in your course.\n2. Click "Submit" on an open assignment.\n3. Enter your answer or upload your file.\n4. Click Submit.',
+    views: 421, helpful: 156, notHelpful: 8, publishedAt: '2025-01-20T00:00:00Z', updatedAt: '2025-03-15T00:00:00Z',
+  },
+  {
+    id: 'kb_5', title: 'Password Reset and Account Recovery', slug: 'password-reset',
+    category: 'Technical', tags: ['password', 'login', 'account', 'reset'],
+    content: 'If you cannot log in:\n1. Contact IT Support by submitting a ticket under "Login Issue" category.\n2. Provide your full name, email address, and employee/student ID.\n3. IT Support will reset your account within 1–2 hours during business hours.\n\nFor security, passwords cannot be reset via email automatically. All resets are done manually by IT staff.',
+    views: 178, helpful: 52, notHelpful: 3, publishedAt: '2025-02-10T00:00:00Z', updatedAt: '2025-04-05T00:00:00Z',
+  },
+  {
+    id: 'kb_6', title: 'How to Check Your Grades', slug: 'check-grades',
+    category: 'Academic', tags: ['grades', 'student', 'academic'],
+    content: 'To check your grades:\n1. Log in to the Student Portal.\n2. Click "My Grades" in the sidebar.\n3. Only officially published grades are shown.\n4. Grades appear after your professor submits and the Registrar publishes them.\n\nIf you believe there is a grade error, submit a support ticket under "Grades Concern" with your subject code and computation details.',
+    views: 267, helpful: 89, notHelpful: 5, publishedAt: '2025-01-25T00:00:00Z', updatedAt: '2025-04-20T00:00:00Z',
+  },
+]
+
+// ─── Form Builder ─────────────────────────────────────────────────────────────
+
+const DEFAULT_SETTINGS: FormSettings = {
+  oneSubmissionPerUser: false, allowAnonymous: false,
+  autoCloseOnDeadline: false, showProgressBar: true,
+  successMessage: 'Your response has been submitted successfully. Thank you!'
+}
+
+export const MOCK_FORMS: InstitutionalForm[] = [
+  {
+    id: 'form_1', title: 'Faculty Leave Request Form',
+    description: 'Submit your leave requests through this form. HR will review within 1-2 business days.',
+    department: 'Human Resources', createdBy: 'u_hr', createdByName: 'HR Staff',
+    status: 'PUBLISHED', visibility: 'STAFF_ONLY', category: 'Request',
+    tags: ['leave', 'HR', 'faculty'],
+    fields: [
+      { id: 'f1_1', type: 'SHORT_TEXT', label: 'Full Name', required: true, autoFillKey: 'full_name' },
+      { id: 'f1_2', type: 'EMAIL', label: 'Email Address', required: true, autoFillKey: 'email' },
+      { id: 'f1_3', type: 'DROPDOWN', label: 'Leave Type', required: true, options: ['Vacation Leave','Sick Leave','Maternity Leave','Paternity Leave','Emergency Leave','Official Business Leave'] },
+      { id: 'f1_4', type: 'DATE', label: 'Start Date', required: true },
+      { id: 'f1_5', type: 'DATE', label: 'End Date', required: true },
+      { id: 'f1_6', type: 'LONG_TEXT', label: 'Reason for Leave', required: true, placeholder: 'Please provide details about your leave request...' },
+      { id: 'f1_7', type: 'FILE_UPLOAD', label: 'Medical Certificate', required: false, acceptedFiles: ['.pdf','.jpg','.png'], condition: { fieldId: 'f1_3', operator: 'equals', value: 'Sick Leave' } },
+      { id: 'f1_8', type: 'SHORT_TEXT', label: 'Emergency Contact Number', required: true },
+    ],
+    settings: { ...DEFAULT_SETTINGS, oneSubmissionPerUser: false, routeToDept: 'HR', successMessage: 'Leave request submitted. HR will review and respond within 1–2 business days.' },
+    submissionCount: 7, schoolId: 'school_1', createdAt: '2025-04-01T00:00:00Z', updatedAt: '2025-04-01T00:00:00Z', publishedAt: '2025-04-01T00:00:00Z',
+  },
+  {
+    id: 'form_2', title: 'Equipment Borrow Request',
+    description: 'Request to borrow school equipment for academic or official purposes.',
+    department: 'Asset Management', createdBy: 'u_amo', createdByName: 'AMO Staff',
+    status: 'PUBLISHED', visibility: 'PUBLIC_INTERNAL', category: 'Request',
+    tags: ['equipment', 'borrow', 'AMO'],
+    fields: [
+      { id: 'f2_1', type: 'SHORT_TEXT', label: 'Requestor Name', required: true, autoFillKey: 'full_name' },
+      { id: 'f2_2', type: 'SHORT_TEXT', label: 'Department / Section', required: true, autoFillKey: 'department' },
+      { id: 'f2_3', type: 'DROPDOWN', label: 'Equipment Type', required: true, options: ['Laptop','Desktop PC','Projector','Printer','Camera','Tablet','Router','Other'] },
+      { id: 'f2_4', type: 'SHORT_TEXT', label: 'Specific Equipment / Model', required: false, placeholder: 'e.g. Dell Inspiron 15, Epson Projector' },
+      { id: 'f2_5', type: 'DATE', label: 'Borrow Date', required: true },
+      { id: 'f2_6', type: 'DATE', label: 'Return Date', required: true },
+      { id: 'f2_7', type: 'LONG_TEXT', label: 'Purpose / Justification', required: true },
+      { id: 'f2_8', type: 'RATING', label: 'How urgent is this request?', required: true, maxRating: 5 },
+    ],
+    settings: { ...DEFAULT_SETTINGS, routeToDept: 'AMO', successMessage: 'Equipment request submitted. AMO will check availability and respond shortly.' },
+    submissionCount: 3, schoolId: 'school_1', createdAt: '2025-04-05T00:00:00Z', updatedAt: '2025-04-05T00:00:00Z', publishedAt: '2025-04-05T00:00:00Z',
+  },
+  {
+    id: 'form_3', title: 'Student Feedback Form — 1st Semester 2025-2026',
+    description: 'Share your feedback about your courses and learning experience this semester.',
+    department: 'Academic Affairs', createdBy: 'u_academic', createdByName: 'Academic Admin',
+    status: 'PUBLISHED', visibility: 'STUDENT_ONLY', category: 'Feedback',
+    tags: ['feedback', 'student', 'academic'],
+    fields: [
+      { id: 'f3_1', type: 'DROPDOWN', label: 'Subject', required: true, options: ['CS101 - Intro to Programming','CS201 - Data Structures','MATH101 - Calculus I','GE101 - Purposive Communication','CS301 - Web Development'] },
+      { id: 'f3_2', type: 'RATING', label: 'Overall course satisfaction', required: true, maxRating: 5 },
+      { id: 'f3_3', type: 'RATING', label: 'Teaching quality', required: true, maxRating: 5 },
+      { id: 'f3_4', type: 'RATING', label: 'Course materials & resources', required: true, maxRating: 5 },
+      { id: 'f3_5', type: 'RADIO', label: 'Would you recommend this subject to others?', required: true, options: ['Definitely yes','Probably yes','Probably not','Definitely not'] },
+      { id: 'f3_6', type: 'LONG_TEXT', label: 'What did you like most about this course?', required: false },
+      { id: 'f3_7', type: 'LONG_TEXT', label: 'What can be improved?', required: false },
+    ],
+    settings: { ...DEFAULT_SETTINGS, allowAnonymous: true, successMessage: 'Thank you for your feedback! Your responses help us improve the learning experience.' },
+    submissionCount: 12, schoolId: 'school_1', createdAt: '2025-05-01T00:00:00Z', updatedAt: '2025-05-01T00:00:00Z', publishedAt: '2025-05-01T00:00:00Z',
+  },
+  {
+    id: 'form_4', title: 'Incident Report Form',
+    description: 'Report any incident, accident, or concern that occurred on campus.',
+    department: 'Administration', createdBy: 'u_admin', createdByName: 'Super Admin',
+    status: 'PUBLISHED', visibility: 'PUBLIC_INTERNAL', category: 'Incident Report',
+    tags: ['incident', 'safety', 'admin'],
+    fields: [
+      { id: 'f4_1', type: 'SHORT_TEXT', label: 'Reporter Name', required: true, autoFillKey: 'full_name' },
+      { id: 'f4_2', type: 'DATE', label: 'Date of Incident', required: true },
+      { id: 'f4_3', type: 'TIME', label: 'Time of Incident', required: true },
+      { id: 'f4_4', type: 'SHORT_TEXT', label: 'Location / Area', required: true },
+      { id: 'f4_5', type: 'DROPDOWN', label: 'Incident Type', required: true, options: ['Accident / Injury','Property Damage','Security Concern','Health Emergency','Fire / Hazard','Theft','Other'] },
+      { id: 'f4_6', type: 'LONG_TEXT', label: 'Detailed Description of Incident', required: true },
+      { id: 'f4_7', type: 'LONG_TEXT', label: 'Immediate Actions Taken', required: false },
+      { id: 'f4_8', type: 'FILE_UPLOAD', label: 'Supporting Documents / Photos', required: false, acceptedFiles: ['.pdf','.jpg','.jpeg','.png'] },
+    ],
+    settings: { ...DEFAULT_SETTINGS, allowAnonymous: true, routeToDept: 'ADMIN', successMessage: 'Incident report submitted. Administration will follow up within 24 hours.' },
+    submissionCount: 2, schoolId: 'school_1', createdAt: '2025-03-15T00:00:00Z', updatedAt: '2025-03-15T00:00:00Z', publishedAt: '2025-03-15T00:00:00Z',
+  },
+  {
+    id: 'form_5', title: 'New Employee IT Access Request',
+    description: 'Request IT system access and credentials for new employees.',
+    department: 'Human Resources', createdBy: 'u_hr', createdByName: 'HR Staff',
+    status: 'DRAFT', visibility: 'STAFF_ONLY', category: 'Request',
+    tags: ['IT', 'HR', 'access', 'onboarding'],
+    fields: [
+      { id: 'f5_1', type: 'SHORT_TEXT', label: 'Employee Full Name', required: true },
+      { id: 'f5_2', type: 'EMAIL', label: 'Personal Email (for account setup)', required: true },
+      { id: 'f5_3', type: 'DROPDOWN', label: 'Position / Role', required: true, options: ['Faculty','Administrative Staff','Dean','Department Head','IT Staff','Support Staff'] },
+      { id: 'f5_4', type: 'SHORT_TEXT', label: 'Department', required: true },
+      { id: 'f5_5', type: 'DATE', label: 'Start Date', required: true },
+      { id: 'f5_6', type: 'MULTI_SELECT', label: 'Required System Access', required: true, options: ['Student Information System','LMS','Email','Payroll','Document Management','HR Portal','Finance System'] },
+    ],
+    settings: { ...DEFAULT_SETTINGS, routeToDept: 'IT_SUPPORT', successMessage: 'Access request submitted. IT will set up accounts within 24–48 hours.' },
+    submissionCount: 0, schoolId: 'school_1', createdAt: '2025-05-10T00:00:00Z', updatedAt: '2025-05-10T00:00:00Z',
+  },
+]
+
+export const MOCK_FORM_SUBMISSIONS: FormSubmission[] = [
+  {
+    id: 'fsub_1', formId: 'form_1', formTitle: 'Faculty Leave Request Form',
+    submittedBy: 'u_teacher', submittedByName: 'Prof. Santos', submittedByRole: 'TEACHER',
+    responses: { f1_1:'Prof. Santos', f1_2:'prof.santos@school.edu', f1_3:'Vacation Leave', f1_4:'2025-05-20', f1_5:'2025-05-22', f1_6:'Family vacation planned months ago.', f1_8:'09171234567' },
+    status: 'APPROVED', schoolId: 'school_1', submittedAt: '2025-05-10T09:00:00Z', reviewedAt: '2025-05-11T09:00:00Z', reviewedBy: 'HR Staff',
+  },
+  {
+    id: 'fsub_2', formId: 'form_2', formTitle: 'Equipment Borrow Request',
+    submittedBy: 'u_teacher', submittedByName: 'Prof. Santos', submittedByRole: 'TEACHER',
+    responses: { f2_1:'Prof. Santos', f2_2:'College of Computing', f2_3:'Projector', f2_5:'2025-05-15', f2_6:'2025-05-15', f2_7:'Needed for thesis defense presentation.', f2_8:4 },
+    status: 'SUBMITTED', schoolId: 'school_1', submittedAt: '2025-05-13T08:00:00Z',
+  },
+  {
+    id: 'fsub_3', formId: 'form_3', formTitle: 'Student Feedback Form',
+    submittedBy: 'u_student', submittedByName: 'Ethan Dela Cruz', submittedByRole: 'STUDENT',
+    responses: { f3_1:'CS101 - Intro to Programming', f3_2:5, f3_3:4, f3_4:4, f3_5:'Definitely yes', f3_6:'Very engaging lectures and practical labs.', f3_7:'More practice problems would help.' },
+    status: 'COMPLETED', schoolId: 'school_1', submittedAt: '2025-05-05T14:00:00Z',
+  },
+]
+
+let _formSeq = 6
+export function nextFormId(): string { return `form_${_formSeq++}` }
+let _fsubSeq = 4
+export function nextFsubId(): string { return `fsub_${_fsubSeq++}` }

@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { Plus, Edit2, Save, X, ChevronDown, ChevronRight, ListChecks } from 'lucide-react'
+import { Plus, Edit2, Save, X, ChevronDown, ChevronRight, ListChecks, Upload } from 'lucide-react'
 import { Card, SectionTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { MOCK_SUBJECTS, MOCK_PROGRAMS } from '@/lib/mock-data'
 import { yearLevelLabel } from '@/lib/utils'
+import { ImportModal } from '@/components/shared/ImportModal'
 import type { Subject } from '@/types'
 
 function inferYearLevel(code: string): number {
@@ -34,9 +35,10 @@ export default function AcademicSubjectsPage() {
   const [subjects,  setSubjects]  = useState<SubjectRow[]>(
     MOCK_SUBJECTS.map((s) => ({ ...s, lectureUnits: s.units, totalHours: s.units * 18 })),
   )
-  const [addModal,  setAddModal]  = useState(false)
-  const [editId,    setEditId]    = useState<string | null>(null)
-  const [editForm,  setEditForm]  = useState<Record<string, string>>({})
+  const [addModal,   setAddModal]   = useState(false)
+  const [editId,     setEditId]     = useState<string | null>(null)
+  const [editForm,   setEditForm]   = useState<Record<string, string>>({})
+  const [importOpen, setImportOpen] = useState(false)
 
   const [newForm, setNewForm] = useState({
     code: '', name: '', programId: '', lectureUnits: '3', labUnits: '0', totalHours: '54', type: 'LECTURE', yearLevel: '1',
@@ -118,10 +120,43 @@ export default function AcademicSubjectsPage() {
     <div className="space-y-5 max-w-7xl">
       <SectionTitle
         description="Master list of all subjects organized by year level"
-        actions={<Button icon={<Plus className="h-4 w-4" />} onClick={() => setAddModal(true)}>Add Subject</Button>}
+        actions={
+          <div className="flex gap-2">
+            <button onClick={() => setImportOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-[#dce8f7] bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-brand-50 hover:border-brand-300 hover:text-brand-700 transition-all">
+              <Upload className="h-3.5 w-3.5" /> Import
+            </button>
+            <Button icon={<Plus className="h-4 w-4" />} onClick={() => setAddModal(true)}>Add Subject</Button>
+          </div>
+        }
       >
         Subject Master List
       </SectionTitle>
+
+      {importOpen && (
+        <ImportModal
+          templateId="subjects"
+          onClose={() => setImportOpen(false)}
+          onImport={(rows) => {
+            const newSubjects = rows.map((row) => ({
+              id: `subj_imp_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
+              code: row.code ?? '', name: row.name ?? '',
+              units: Number(row.lecture_units ?? 3) + Number(row.lab_units ?? 0),
+              lectureUnits: Number(row.lecture_units ?? 3),
+              labUnits: Number(row.lab_units ?? 0),
+              totalHours: (Number(row.lecture_units ?? 3) + Number(row.lab_units ?? 0)) * 18,
+              type: (row.type as 'LECTURE' | 'LABORATORY' | 'HYBRID') || 'LECTURE',
+              yearLevel: Number(row.year_level ?? 1),
+              departmentId: 'dept_1',
+              description: row.description || undefined,
+              schoolId: 'school_1', createdAt: new Date().toISOString(),
+            }))
+            newSubjects.forEach((s) => MOCK_SUBJECTS.push(s as never))
+            setSubjects((prev) => [...prev, ...newSubjects])
+            setImportOpen(false)
+          }}
+        />
+      )}
 
       {yearLevels.map((y) => (
         <div key={y}>

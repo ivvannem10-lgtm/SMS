@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:2": "next dev -p 3001",
+    "dev:3": "next dev -p 3002",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -13,8 +15,8 @@
     "db:reset": "prisma migrate reset --force && tsx prisma/seed.ts"
   },
   "dependencies": {
-    "pdfjs-dist": "^5.7.284",
     "@hookform/resolvers": "^3.9.0",
+    "@pdf-lib/fontkit": "^1.1.1",
     "@prisma/client": "^5.16.0",
     "bcryptjs": "^2.4.3",
     "clsx": "^2.1.1",
@@ -24,11 +26,13 @@
     "next": "14.2.5",
     "next-auth": "^4.24.7",
     "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^5.7.284",
     "react": "^18",
     "react-dom": "^18",
     "react-hook-form": "^7.52.1",
     "recharts": "^3.8.1",
     "tailwind-merge": "^2.4.0",
+    "xlsx": "^0.18.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {

@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Modal, ConfirmModal } from '@/components/ui/Modal'
 import { Input, Select, Textarea } from '@/components/ui/Input'
+import { useConfirm } from '@/components/shared/ConfirmDialog'
 import { MOCK_JOB_POSTINGS, MOCK_JOB_APPLICATIONS } from '@/lib/mock-data'
 import { formatDate, formatCurrency, cn } from '@/lib/utils'
 import type { JobPosting, JobPostingStatus, EmploymentType, WorkSetup } from '@/types'
@@ -104,6 +105,7 @@ const DEFAULT_FORM: JobFormData = {
 let nextJobId = MOCK_JOB_POSTINGS.length + 1
 
 export default function JobPostingsPage() {
+  const confirm = useConfirm()
   const [postings, setPostings] = useState<JobPosting[]>([...MOCK_JOB_POSTINGS])
   const [filter, setFilter] = useState<FilterTab>('ALL')
   const [openMenu, setOpenMenu] = useState<string | null>(null)
@@ -189,7 +191,16 @@ export default function JobPostingsPage() {
     setCreateOpen(false)
   }
 
-  function handleToggleStatus(job: JobPosting) {
+  async function handleToggleStatus(job: JobPosting) {
+    if (job.status !== 'CLOSED') {
+      const ok = await confirm({
+        title: 'Close Job Posting?',
+        message: 'No new applications will be accepted once closed.',
+        variant: 'warning',
+        confirmLabel: 'Close Posting',
+      })
+      if (!ok) return
+    }
     const idx = MOCK_JOB_POSTINGS.findIndex((j) => j.id === job.id)
     if (idx >= 0) {
       MOCK_JOB_POSTINGS[idx].status = MOCK_JOB_POSTINGS[idx].status === 'CLOSED' ? 'OPEN' : 'CLOSED'

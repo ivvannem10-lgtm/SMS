@@ -5,7 +5,7 @@ import { ROLE_PORTALS } from './utils'
 
 // Demo users use plain-text passwords for fast comparison.
 // Real database users go through bcrypt in the Prisma branch below.
-const DEMO_USERS = [
+export const DEMO_USERS = [
   { id: 'u_superadmin',     email: 'admin@school.edu',          password: 'password', name: 'Alex Administrator', role: 'SUPER_ADMIN',       schoolId: 'school_1', schoolName: 'St. Dominic College', schoolColor: '#2563EB' },
   { id: 'u_admission',      email: 'admissions@school.edu',     password: 'password', name: 'Ana Admissions',     role: 'ADMISSION_OFFICER', schoolId: 'school_1', schoolName: 'St. Dominic College', schoolColor: '#2563EB' },
   { id: 'u_registrar',      email: 'registrar@school.edu',      password: 'password', name: 'Rosa Registrar',     role: 'REGISTRAR',         schoolId: 'school_1', schoolName: 'St. Dominic College', schoolColor: '#2563EB' },
@@ -17,6 +17,8 @@ const DEMO_USERS = [
   { id: 'u_dean_nursing',   email: 'dean.nursing@school.edu',   password: 'password', name: 'Dr. Ana Garcia',     role: 'DEAN', deanDepartment: 'College of Nursing',    schoolId: 'school_1', schoolName: 'St. Dominic College', schoolColor: '#2563EB' },
   { id: 'u_dean_arts',      email: 'dean.arts@school.edu',      password: 'password', name: 'Dr. Carlos Cruz',    role: 'DEAN', deanDepartment: 'Arts & Sciences',       schoolId: 'school_1', schoolName: 'St. Dominic College', schoolColor: '#2563EB' },
   { id: 'u_hr',             email: 'hr@school.edu',             password: 'password', name: 'Hannah Rodriguez',   role: 'HR_STAFF',          schoolId: 'school_1', schoolName: 'St. Dominic College', schoolColor: '#2563EB' },
+  { id: 'u_amo',            email: 'amo@school.edu',             password: 'password', name: 'Marco Dela Cruz',    role: 'AMO',               schoolId: 'school_1', schoolName: 'St. Dominic College', schoolColor: '#2563EB' },
+  { id: 'u_purchasing',    email: 'purchasing@school.edu',      password: 'password', name: 'Mark Purchasing',    role: 'PURCHASING_OFFICER', schoolId: 'school_1', schoolName: 'St. Dominic College', schoolColor: '#2563EB' },
   { id: 'u_teacher',        email: 'prof.santos@school.edu',    password: 'password', name: 'Prof. Roberto Santos', role: 'TEACHER',          schoolId: 'school_1', schoolName: 'St. Dominic College', schoolColor: '#2563EB', facultyId: 'f_1' },
   { id: 'u_student',        email: 'student@school.edu',        password: 'password', name: 'Ethan Dela Cruz',    role: 'STUDENT',           schoolId: 'school_1', schoolName: 'St. Dominic College', schoolColor: '#2563EB', studentId: 'st_1' },
 ]

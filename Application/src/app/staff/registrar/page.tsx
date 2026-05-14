@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Search, Plus, X, ExternalLink, ChevronRight, AlertCircle, CheckCircle2, Clock, CreditCard } from 'lucide-react'
+import { Search, Plus, X, ExternalLink, ChevronRight, AlertCircle, CheckCircle2, Clock, CreditCard, Upload } from 'lucide-react'
 import { Card, SectionTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
@@ -12,7 +12,8 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Badge, EnrollmentBadge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { MOCK_STUDENTS, MOCK_ENROLLMENTS, MOCK_SEMESTERS, MOCK_SOA } from '@/lib/mock-data'
-import { fullName, yearLevelLabel, formatDate } from '@/lib/utils'
+import { fullName, yearLevelLabel, formatDate, generateStudentId } from '@/lib/utils'
+import { ImportModal } from '@/components/shared/ImportModal'
 import type { Student, StudentStatus, SOA } from '@/types'
 
 function php(n: number) {
@@ -333,6 +334,7 @@ function RegistrarPageInner() {
   const [statusFilter, setStatusFilter] = useState<StudentStatus | 'ALL'>('ALL')
   const [enrollFilter, setEnrollFilter] = useState<'ALL' | 'ENROLLED' | 'NOT_ENROLLED' | 'NEW'>('ALL')
   const [viewStudent,  setViewStudent]  = useState<Student | null>(null)
+  const [importOpen,   setImportOpen]   = useState(false)
 
   // Initialise filters from URL params (e.g. dashboard stat card clicks)
   useEffect(() => {
@@ -366,9 +368,40 @@ function RegistrarPageInner() {
 
   return (
     <div className="space-y-5 max-w-7xl">
-      <SectionTitle>
+      <SectionTitle
+        actions={
+          <button onClick={() => setImportOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-[#dce8f7] bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-brand-50 hover:border-brand-300 hover:text-brand-700 transition-all">
+            <Upload className="h-3.5 w-3.5" /> Import Students
+          </button>
+        }
+      >
         Student Records
       </SectionTitle>
+      {importOpen && (
+        <ImportModal
+          templateId="students"
+          onClose={() => setImportOpen(false)}
+          onImport={(rows) => {
+            rows.forEach((row) => {
+              MOCK_STUDENTS.push({
+                id: `st_imp_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
+                studentId: generateStudentId(MOCK_STUDENTS.length + 1),
+                firstName: row.first_name ?? '', lastName: row.last_name ?? '',
+                middleName: row.middle_name || undefined,
+                email: row.email ?? '', phone: row.phone || undefined,
+                dateOfBirth: row.birthday || undefined, gender: row.gender || undefined,
+                address: row.address || undefined,
+                program: row.program ? { id: 'prog_imp', name: row.program, code: row.program.slice(0,4).toUpperCase(), departmentId: 'dept_1', schoolId: 'school_1' } : undefined,
+                yearLevel: row.year_level ? Number(row.year_level) : 1,
+                status: (row.status as Student['status']) || 'ACTIVE',
+                schoolId: 'school_1', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+              })
+            })
+            setImportOpen(false)
+          }}
+        />
+      )}
 
       {/* ── Filters ───────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-3">

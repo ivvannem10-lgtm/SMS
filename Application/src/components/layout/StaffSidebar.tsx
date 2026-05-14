@@ -8,6 +8,9 @@ import {
   Shield, LogOut, BookOpen, ClipboardList,
   Building2, GraduationCap, School, Layers, FileText, Wallet, CalendarDays, LayoutGrid, FileCheck2,
   Briefcase, UserRound, ClipboardCheck, CalendarClock, Kanban,
+  Package, PackageSearch, Wrench, ScanBarcode, ArchiveRestore, Tag,
+  Receipt, TrendingUp, ShoppingCart, Store, BarChart2, DollarSign, TrendingDown, Inbox, LifeBuoy,
+  LayoutTemplate,
 } from 'lucide-react'
 import { cn, initials, ROLE_LABELS } from '@/lib/utils'
 import type { Role } from '@/types'
@@ -20,6 +23,8 @@ const STAFF_NAV: { group: string; items: NavItem[] }[] = [
     items: [
       { href: '/staff/dashboard', label: 'Dashboard', icon: LayoutDashboard,
         roles: ['SUPER_ADMIN','ADMISSION_OFFICER','REGISTRAR','TREASURER','ACADEMIC_ADMIN'] as Role[] },
+      { href: '/staff/requests', label: 'Request Center', icon: Inbox },
+      { href: '/staff/support',  label: 'Support Center', icon: LifeBuoy },
       { href: '/staff/audit',  label: 'Audit Logs',      icon: Shield, roles: ['SUPER_ADMIN'] as Role[] },
       { href: '/staff/users',  label: 'User Management', icon: Users,  roles: ['SUPER_ADMIN'] as Role[] },
     ],
@@ -43,12 +48,32 @@ const STAFF_NAV: { group: string; items: NavItem[] }[] = [
     ],
   },
   {
-    group: 'Finance',
+    group: 'Treasury',
     items: [
-      { href: '/staff/treasury',          label: 'Cashier',          icon: Banknote,   roles: ['SUPER_ADMIN','TREASURER'] as Role[] },
-      { href: '/staff/treasury/accounts', label: 'Student Accounts', icon: Wallet,     roles: ['SUPER_ADMIN','TREASURER'] as Role[] },
-      { href: '/staff/treasury/logs',     label: 'Transaction Logs', icon: FileText,   roles: ['SUPER_ADMIN','TREASURER'] as Role[] },
-      { href: '/staff/treasury/budget',   label: 'Budget Mgmt',      icon: LayoutGrid, roles: ['SUPER_ADMIN','ACCOUNTING'] as Role[] },
+      { href: '/staff/treasury',                label: 'Cashier',          icon: Banknote,       roles: ['SUPER_ADMIN','TREASURER'] as Role[] },
+      { href: '/staff/treasury/accounts',       label: 'Student Accounts', icon: Wallet,         roles: ['SUPER_ADMIN','TREASURER'] as Role[] },
+      { href: '/staff/treasury/logs',           label: 'Transaction Logs', icon: FileText,       roles: ['SUPER_ADMIN','TREASURER'] as Role[] },
+      { href: '/staff/treasury/collections',    label: 'Collections',      icon: Receipt,        roles: ['SUPER_ADMIN','TREASURER'] as Role[] },
+      { href: '/staff/treasury/receipts',       label: 'Official Receipts', icon: FileText,      roles: ['SUPER_ADMIN','TREASURER'] as Role[] },
+    ],
+  },
+  {
+    group: 'Accounting',
+    items: [
+      { href: '/staff/accounting',              label: 'Acct Dashboard',   icon: LayoutDashboard, roles: ['SUPER_ADMIN','ACCOUNTING'] as Role[] },
+      { href: '/staff/accounting/cashflow',     label: 'Cashflow',         icon: TrendingUp,      roles: ['SUPER_ADMIN','ACCOUNTING'] as Role[] },
+      { href: '/staff/accounting/expenses',     label: 'Expenses',         icon: TrendingDown,    roles: ['SUPER_ADMIN','ACCOUNTING'] as Role[] },
+      { href: '/staff/accounting/reports',      label: 'Reports',          icon: BarChart2,       roles: ['SUPER_ADMIN','ACCOUNTING'] as Role[] },
+      { href: '/staff/treasury/budget',         label: 'Budget Mgmt',      icon: LayoutGrid,      roles: ['SUPER_ADMIN','ACCOUNTING'] as Role[] },
+    ],
+  },
+  {
+    group: 'Purchasing',
+    items: [
+      { href: '/staff/purchasing',              label: 'Purch. Dashboard', icon: LayoutDashboard,   roles: ['SUPER_ADMIN','PURCHASING_OFFICER'] as Role[] },
+      { href: '/staff/purchasing/requests',     label: 'Purchase Requests', icon: ShoppingCart,     roles: ['SUPER_ADMIN','PURCHASING_OFFICER','ACCOUNTING'] as Role[] },
+      { href: '/staff/purchasing/orders',       label: 'Purchase Orders',  icon: Package,           roles: ['SUPER_ADMIN','PURCHASING_OFFICER'] as Role[] },
+      { href: '/staff/purchasing/vendors',      label: 'Vendors',          icon: Store,             roles: ['SUPER_ADMIN','PURCHASING_OFFICER'] as Role[] },
     ],
   },
   {
@@ -61,6 +86,17 @@ const STAFF_NAV: { group: string; items: NavItem[] }[] = [
     ],
   },
   {
+    group: 'Asset Management',
+    items: [
+      { href: '/staff/ams',              label: 'AMS Dashboard',  icon: LayoutDashboard, roles: ['SUPER_ADMIN','AMO'] as Role[] },
+      { href: '/staff/ams/assets',       label: 'Asset Registry', icon: PackageSearch,   roles: ['SUPER_ADMIN','AMO'] as Role[] },
+      { href: '/staff/ams/borrow',       label: 'Borrow & Deploy',icon: ArchiveRestore,  roles: ['SUPER_ADMIN','AMO'] as Role[] },
+      { href: '/staff/ams/consumables',  label: 'Consumables',    icon: Package,         roles: ['SUPER_ADMIN','AMO'] as Role[] },
+      { href: '/staff/ams/maintenance',  label: 'Maintenance',    icon: Wrench,          roles: ['SUPER_ADMIN','AMO'] as Role[] },
+      { href: '/staff/ams/tag-builder',  label: 'Tag Builder',    icon: Tag,             roles: ['SUPER_ADMIN','AMO'] as Role[] },
+    ],
+  },
+  {
     group: 'Human Resources',
     items: [
       { href: '/staff/hr',             label: 'HR Dashboard',   icon: LayoutDashboard, roles: ['SUPER_ADMIN','HR_STAFF'] as Role[] },
@@ -69,6 +105,14 @@ const STAFF_NAV: { group: string; items: NavItem[] }[] = [
       { href: '/staff/hr/employees',   label: 'Employees',      icon: UserRound,       roles: ['SUPER_ADMIN','HR_STAFF'] as Role[] },
       { href: '/staff/hr/onboarding',  label: 'Onboarding',     icon: ClipboardCheck,  roles: ['SUPER_ADMIN','HR_STAFF'] as Role[] },
       { href: '/staff/hr/leaves',      label: 'Leave Requests', icon: CalendarClock,   roles: ['SUPER_ADMIN','HR_STAFF'] as Role[] },
+    ],
+  },
+  {
+    group: 'Forms',
+    items: [
+      { href: '/staff/forms', label: 'Form Builder', icon: LayoutTemplate,
+        roles: ['SUPER_ADMIN','REGISTRAR','HR_STAFF','ACCOUNTING','ACADEMIC_ADMIN','PURCHASING_OFFICER','AMO','DEAN'] as Role[] },
+      { href: '/staff/forms/center', label: 'Forms', icon: ClipboardList },
     ],
   },
   {
@@ -96,6 +140,10 @@ const DEAN_NAV: { group: string; items: { href: string; label: string; icon: Rea
     items: [
       { href: '/staff/team',     label: 'Team Hub',    icon: Users },
       { href: '/staff/calendar', label: 'Calendar',    icon: CalendarDays },
+      { href: '/staff/requests', label: 'Request Center', icon: Inbox },
+      { href: '/staff/support',  label: 'Support Center', icon: LifeBuoy },
+      { href: '/staff/forms', label: 'Form Builder', icon: LayoutTemplate },
+      { href: '/staff/forms/center', label: 'Forms', icon: ClipboardList },
     ],
   },
 ]
@@ -104,9 +152,9 @@ export function StaffSidebar() {
   const pathname  = usePathname()
   const { data: session } = useSession()
   const user = session?.user as { name?: string; role?: string; schoolName?: string; deanDepartment?: string } | undefined
-  const role   = user?.role as Role
-  const isDean = role === 'DEAN'
-  const isHR   = role === 'HR_STAFF'
+  const role        = user?.role as Role
+  const isDean      = role === 'DEAN'
+  const isHR        = role === 'HR_STAFF'
 
   const [signOutOpen, setSignOutOpen] = useState(false)
   const [signingOut,  setSigningOut]  = useState(false)

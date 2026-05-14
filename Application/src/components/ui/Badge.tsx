@@ -80,13 +80,16 @@ export function RoleBadge({ role }: { role: string }) {
     ACCOUNTING:        'bg-teal-50 text-teal-700 ring-teal-200',
     DEAN:              'bg-brand-100 text-brand-700 ring-brand-300',
     HR_STAFF:          'bg-pink-50 text-pink-700 ring-pink-200',
-    TEACHER:           'bg-orange-50 text-orange-700 ring-orange-200',
-    STUDENT:           'bg-slate-100 text-slate-600 ring-slate-200',
+    AMO:               'bg-yellow-50 text-yellow-700 ring-yellow-200',
+    TEACHER:            'bg-orange-50 text-orange-700 ring-orange-200',
+    STUDENT:            'bg-slate-100 text-slate-600 ring-slate-200',
+    PURCHASING_OFFICER: 'bg-indigo-50 text-indigo-700 ring-indigo-200',
   }
   const labels: Record<string, string> = {
     SUPER_ADMIN: 'Super Admin', ADMISSION_OFFICER: 'Admission', REGISTRAR: 'Registrar',
     TREASURER: 'Treasurer', ACADEMIC_ADMIN: 'Academic Admin', ACCOUNTING: 'Accounting',
-    DEAN: 'Dean', HR_STAFF: 'HR Staff', TEACHER: 'Teacher', STUDENT: 'Student',
+    DEAN: 'Dean', HR_STAFF: 'HR Staff', AMO: 'Asset Mgmt', TEACHER: 'Teacher', STUDENT: 'Student',
+    PURCHASING_OFFICER: 'Purchasing',
   }
   return <Badge className={map[role] ?? 'bg-slate-100 text-slate-600 ring-slate-200'}>{labels[role] ?? role}</Badge>
 }

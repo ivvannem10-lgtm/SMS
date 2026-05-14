@@ -14,6 +14,7 @@ import { SOABadge, PaymentBadge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { Input, Select, Textarea } from '@/components/ui/Input'
 import { ProcessFlow } from '@/components/shared/ProcessFlow'
+import { useConfirm } from '@/components/shared/ConfirmDialog'
 import {
   MOCK_SOA, MOCK_STUDENTS, MOCK_SEMESTERS, MOCK_TREASURY_LOGS,
 } from '@/lib/mock-data'
@@ -104,6 +105,8 @@ export default function SOADetailPage({ params }: { params: { studentId: string 
   const [refundAmount, setRefundAmount] = useState('')
   const [refundNotes,  setRefundNotes]  = useState('')
 
+  const confirm = useConfirm()
+
   if (!student) return <div className="py-20 text-center text-slate-500">Student not found.</div>
 
   const { total, paid, balance, over, status } = computeSOA(soa)
@@ -148,6 +151,13 @@ export default function SOADetailPage({ params }: { params: { studentId: string 
   async function handlePayment() {
     const amt = +payAmount
     if (!amt || amt <= 0) return
+    const ok = await confirm({
+      title: 'Validate Payment?',
+      message: 'This will mark the payment as validated and update the student balance.',
+      variant: 'success',
+      confirmLabel: 'Validate',
+    })
+    if (!ok) return
     setSaving(true)
     await new Promise((r) => setTimeout(r, 600))
     const receipt = generateReceiptNumber()
