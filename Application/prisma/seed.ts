@@ -6,213 +6,198 @@ const db = new PrismaClient()
 async function main() {
   console.log('Seeding database…')
 
-  // School
+  const pw = await bcrypt.hash('password', 10)
+
+  // ── School ──────────────────────────────────────────────────────────────────
   const school = await db.school.upsert({
-    where: { slug: 'westfield' },
+    where: { slug: 'stdominic' },
     update: {},
     create: {
-      name: 'Westfield University',
-      slug: 'westfield',
-      address: '123 University Ave, Westfield City',
-      phone: '+1 (555) 000-1234',
-      email: 'registrar@westfield.edu',
-      website: 'https://westfield.edu',
-      primaryColor: '#2563EB',
+      name: 'St. Dominic College',
+      slug: 'stdominic',
+      address: '45 Rizal Ave, Quezon City',
+      phone: '+63 2 8000-1234',
+      email: 'info@stdominic.edu.ph',
+      primaryColor: '#1a4a8a',
       plan: 'PROFESSIONAL',
     },
   })
   console.log(`✓ School: ${school.name}`)
 
-  // Programs
-  const programs = await Promise.all([
-    db.program.upsert({
-      where: { code_schoolId: { code: 'BSCS', schoolId: school.id } },
+  // ── Users (all demo accounts) ────────────────────────────────────────────────
+  const upsertUser = (email: string, name: string, role: string) =>
+    db.user.upsert({
+      where: { email },
       update: {},
-      create: { name: 'Bachelor of Science in Computer Science', code: 'BSCS', schoolId: school.id },
-    }),
-    db.program.upsert({
-      where: { code_schoolId: { code: 'BSIT', schoolId: school.id } },
-      update: {},
-      create: { name: 'Bachelor of Science in Information Technology', code: 'BSIT', schoolId: school.id },
-    }),
-    db.program.upsert({
-      where: { code_schoolId: { code: 'BSBA', schoolId: school.id } },
-      update: {},
-      create: { name: 'Bachelor of Science in Business Administration', code: 'BSBA', schoolId: school.id },
-    }),
+      create: { email, password: pw, name, role, schoolId: school.id },
+    })
+
+  const [
+    uAdmin, uAdmissions, uRegistrar, uTreasury, uAccounting, uPurchasing,
+    uAcademic, uDeanComp, uDeanBiz, uDeanNursing, uDeanArts,
+    uHR, uAMO, uTeacher, uStudent,
+  ] = await Promise.all([
+    upsertUser('admin@school.edu',              'Alex Administrator',    'SUPER_ADMIN'),
+    upsertUser('admissions@school.edu',         'Maria Santos',          'ADMISSION_OFFICER'),
+    upsertUser('registrar@school.edu',          'Rosa Registrar',        'REGISTRAR'),
+    upsertUser('treasury@school.edu',           'Tom Treasury',          'TREASURER'),
+    upsertUser('accounting@school.edu',         'Clara Accounting',      'ACCOUNTING'),
+    upsertUser('purchasing@school.edu',         'Perry Purchasing',      'PURCHASING_OFFICER'),
+    upsertUser('academic@school.edu',           'Ana Academic',          'ACADEMIC_ADMIN'),
+    upsertUser('dean.computing@school.edu',     'Dr. Carlos Reyes',      'DEAN'),
+    upsertUser('dean.business@school.edu',      'Dr. Roberto Tan',       'DEAN'),
+    upsertUser('dean.nursing@school.edu',       'Dr. Elena Cruz',        'DEAN'),
+    upsertUser('dean.arts@school.edu',          'Dr. Grace Villanueva',  'DEAN'),
+    upsertUser('hr@school.edu',                 'Hannah Rodriguez',      'HR_STAFF'),
+    upsertUser('amo@school.edu',                'Marco Dela Cruz',       'AMO'),
+    upsertUser('prof.santos@school.edu',        'Prof. Roberto Santos',  'TEACHER'),
+    upsertUser('student@school.edu',            'Ethan Dela Cruz',       'STUDENT'),
   ])
-  console.log(`✓ Programs: ${programs.length}`)
+  console.log('✓ Users: 15 demo accounts')
 
-  // Users
-  const hashedPassword = await bcrypt.hash('password', 10)
+  // ── Programs ─────────────────────────────────────────────────────────────────
+  const [progCS, progBiz, progNursing, progArts] = await Promise.all([
+    db.program.upsert({ where: { code_schoolId: { code: 'BSCS', schoolId: school.id } }, update: {}, create: { name: 'BS Computer Science', code: 'BSCS', schoolId: school.id } }),
+    db.program.upsert({ where: { code_schoolId: { code: 'BSBA', schoolId: school.id } }, update: {}, create: { name: 'BS Business Administration', code: 'BSBA', schoolId: school.id } }),
+    db.program.upsert({ where: { code_schoolId: { code: 'BSN',  schoolId: school.id } }, update: {}, create: { name: 'Bachelor of Science in Nursing', code: 'BSN',  schoolId: school.id } }),
+    db.program.upsert({ where: { code_schoolId: { code: 'BAComm', schoolId: school.id } }, update: {}, create: { name: 'BA Communication', code: 'BAComm', schoolId: school.id } }),
+  ])
+  console.log('✓ Programs: 4')
 
-  const adminUser = await db.user.upsert({
-    where: { email: 'admin@westfield.edu' },
-    update: {},
-    create: {
-      email: 'admin@westfield.edu',
-      password: hashedPassword,
-      name: 'Alex Administrator',
-      role: 'ADMIN',
-      schoolId: school.id,
-    },
-  })
-  await db.user.upsert({
-    where: { email: 'registrar@westfield.edu' },
-    update: {},
-    create: {
-      email: 'registrar@westfield.edu',
-      password: hashedPassword,
-      name: 'Regina Reyes',
-      role: 'REGISTRAR',
-      schoolId: school.id,
-    },
-  })
-  console.log('✓ Users created')
-
-  // Term
-  const term = await db.term.create({
+  // ── Academic Year + Semester ──────────────────────────────────────────────────
+  const ay = await db.academicYear.create({
     data: {
-      name: '1st Semester 2024-2025',
-      startDate: new Date('2024-08-01'),
-      endDate: new Date('2024-12-15'),
+      name: '2025-2026',
+      startDate: new Date('2025-08-01'),
+      endDate: new Date('2026-05-31'),
       isActive: true,
       schoolId: school.id,
     },
   })
-  console.log(`✓ Term: ${term.name}`)
 
-  // Courses
-  const courses = await Promise.all([
-    db.course.upsert({
-      where: { code_schoolId: { code: 'CS101', schoolId: school.id } },
-      update: {},
-      create: { code: 'CS101', name: 'Introduction to Computing', units: 3, programId: programs[0].id, schoolId: school.id },
-    }),
-    db.course.upsert({
-      where: { code_schoolId: { code: 'CS201', schoolId: school.id } },
-      update: {},
-      create: { code: 'CS201', name: 'Data Structures and Algorithms', units: 3, programId: programs[0].id, schoolId: school.id },
-    }),
-    db.course.upsert({
-      where: { code_schoolId: { code: 'MATH101', schoolId: school.id } },
-      update: {},
-      create: { code: 'MATH101', name: 'Calculus I', units: 4, programId: programs[0].id, schoolId: school.id },
-    }),
-  ])
-  console.log(`✓ Courses: ${courses.length}`)
-
-  // Faculty
-  const facultyUser = await db.user.upsert({
-    where: { email: 'r.santos@westfield.edu' },
-    update: {},
-    create: {
-      email: 'r.santos@westfield.edu',
-      password: hashedPassword,
-      name: 'Robert Santos',
-      role: 'FACULTY',
-      schoolId: school.id,
+  const sem = await db.semester.create({
+    data: {
+      name: '1st Semester',
+      type: 'FIRST',
+      isActive: true,
+      startDate: new Date('2025-08-01'),
+      endDate: new Date('2025-12-20'),
+      enrollmentStart: new Date('2025-07-01'),
+      enrollmentEnd: new Date('2025-08-15'),
+      maxUnits: 24,
+      academicYearId: ay.id,
     },
   })
+  console.log(`✓ Academic Year: ${ay.name} · Semester: ${sem.name}`)
 
+  // ── Subjects ──────────────────────────────────────────────────────────────────
+  const [sCS101, sCS201, sMath101] = await Promise.all([
+    db.subject.upsert({ where: { code_schoolId: { code: 'CS101', schoolId: school.id } }, update: {}, create: { code: 'CS101', name: 'Introduction to Programming', units: 3, labUnits: 1, type: 'LECTURE', schoolId: school.id } }),
+    db.subject.upsert({ where: { code_schoolId: { code: 'CS201', schoolId: school.id } }, update: {}, create: { code: 'CS201', name: 'Data Structures and Algorithms', units: 3, labUnits: 1, type: 'LECTURE', schoolId: school.id } }),
+    db.subject.upsert({ where: { code_schoolId: { code: 'MATH101', schoolId: school.id } }, update: {}, create: { code: 'MATH101', name: 'Mathematics in the Modern World', units: 3, labUnits: 0, type: 'LECTURE', schoolId: school.id } }),
+  ])
+  console.log('✓ Subjects: 3')
+
+  // ── Faculty ───────────────────────────────────────────────────────────────────
   const faculty = await db.faculty.create({
     data: {
       facultyId: 'FAC-2024-001',
-      firstName: 'Robert',
+      firstName: 'Roberto',
       lastName: 'Santos',
-      email: 'r.santos@westfield.edu',
-      department: 'Computer Science',
-      position: 'Professor',
+      email: 'prof.santos@school.edu',
+      phone: '09171234567',
+      department: 'College of Computing',
+      position: 'Associate Professor',
       status: 'ACTIVE',
       schoolId: school.id,
-      userId: facultyUser.id,
+      userId: uTeacher.id,
     },
   })
-  console.log('✓ Faculty created')
+  console.log('✓ Faculty: Prof. Roberto Santos')
 
-  // Schedule
-  await db.schedule.create({
+  // ── Subject Offerings ─────────────────────────────────────────────────────────
+  const off1 = await db.subjectOffering.create({
     data: {
-      courseId: courses[0].id,
-      facultyId: faculty.id,
-      termId: term.id,
-      schoolId: school.id,
-      dayOfWeek: 'MONDAY',
-      startTime: '08:00',
-      endTime: '09:30',
-      room: 'CS Lab 1',
+      section: 'BSCS-1A',
+      status: 'PUBLISHED',
+      maxStudents: 35,
+      subjectId: sCS101.id,
+      semesterId: sem.id,
+      schedules: {
+        create: [
+          { dayOfWeek: 'MON', startTime: '08:00', endTime: '10:00' },
+          { dayOfWeek: 'WED', startTime: '08:00', endTime: '10:00' },
+        ],
+      },
+      assignments: {
+        create: [{ role: 'BOTH', facultyId: faculty.id }],
+      },
     },
   })
-  console.log('✓ Schedule created')
+  console.log('✓ Offerings: 1 published (CS101 · BSCS-1A)')
 
-  // Students
-  const studentUser = await db.user.upsert({
-    where: { email: 'ethan.delacruz@student.westfield.edu' },
-    update: {},
-    create: {
-      email: 'ethan.delacruz@student.westfield.edu',
-      password: hashedPassword,
-      name: 'Ethan Dela Cruz',
-      role: 'STUDENT',
-      schoolId: school.id,
-    },
-  })
-
+  // ── Student ───────────────────────────────────────────────────────────────────
   const student = await db.student.create({
     data: {
-      studentId: '2024-0001',
+      studentId: '2025-00000',
       firstName: 'Ethan',
       lastName: 'Dela Cruz',
-      middleName: 'Miguel',
-      email: 'ethan.delacruz@student.westfield.edu',
-      phone: '555-1001',
-      dateOfBirth: new Date('2005-03-15'),
+      email: 'student@school.edu',
+      phone: '09000000000',
+      dateOfBirth: new Date('2005-01-01'),
       gender: 'MALE',
-      address: '45 Maple St, Westfield City',
-      guardianName: 'Maria Dela Cruz',
-      guardianPhone: '555-2001',
-      guardianRelation: 'Mother',
-      yearLevel: 2,
+      address: 'St. Dominic College',
+      yearLevel: 1,
       status: 'ACTIVE',
-      programId: programs[0].id,
+      programId: progCS.id,
       schoolId: school.id,
-      userId: studentUser.id,
+      userId: uStudent.id,
     },
   })
 
-  // Enrollment with grade
+  // ── Enrollment ────────────────────────────────────────────────────────────────
   await db.enrollment.create({
     data: {
+      status: 'ENROLLED',
       studentId: student.id,
-      courseId: courses[0].id,
-      termId: term.id,
-      midtermGrade: 88,
-      finalGrade: 92,
-      overallGrade: 90.4,
-      letterGrade: '1.50',
-      remarks: 'PASSED',
+      offeringId: off1.id,
+      semesterId: sem.id,
+      confirmedAt: new Date('2025-08-12'),
     },
   })
-
-  // Education history
-  await db.educationHistory.create({
-    data: {
-      studentId: student.id,
-      schoolName: 'Westfield National High School',
-      level: 'HIGH_SCHOOL',
-      yearFrom: 2019,
-      yearTo: 2023,
-      honors: 'With Honors',
-    },
-  })
-
   console.log('✓ Student + enrollment seeded')
-  console.log('\n✅ Seed complete!')
-  console.log('\nDemo login credentials (password: "password"):')
-  console.log('  Admin:     admin@westfield.edu')
-  console.log('  Registrar: registrar@westfield.edu')
-  console.log('  Faculty:   r.santos@westfield.edu')
-  console.log('  Student:   ethan.delacruz@student.westfield.edu')
+
+  // ── SOA for demo student ──────────────────────────────────────────────────────
+  await db.sOA.create({
+    data: {
+      status: 'UNPAID',
+      totalAmount: 28500,
+      paidAmount: 0,
+      balance: 28500,
+      semesterId: sem.id,
+      studentId: student.id,
+      items: {
+        create: [
+          { description: 'Tuition Fee',       amount: 21000, type: 'TUITION' },
+          { description: 'Miscellaneous Fee',  amount: 3500,  type: 'MISC' },
+          { description: 'Laboratory Fee',     amount: 2500,  type: 'LAB' },
+          { description: 'Registration Fee',   amount: 1000,  type: 'REG' },
+          { description: 'Student ID Fee',     amount: 500,   type: 'OTHER' },
+        ],
+      },
+    },
+  })
+  console.log('✓ SOA seeded for demo student')
+
+  console.log('\n✅ Database seeded successfully!')
+  console.log('\nDemo accounts (password: "password"):')
+  console.log('  Super Admin:    admin@school.edu')
+  console.log('  Accounting:     accounting@school.edu')
+  console.log('  Treasury:       treasury@school.edu')
+  console.log('  Registrar:      registrar@school.edu')
+  console.log('  Teacher:        prof.santos@school.edu')
+  console.log('  Student:        student@school.edu')
+  console.log('  (+ 9 more — see /dev for full list)')
 }
 
 main()

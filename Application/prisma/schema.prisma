@@ -10,27 +10,27 @@ datasource db {
 // ─── Tenant ──────────────────────────────────────────────────────────────────
 
 model School {
-  id           String @id @default(cuid())
+  id           String  @id @default(cuid())
   name         String
-  slug         String @unique
+  slug         String  @unique
   logo         String?
   address      String?
   phone        String?
   email        String?
   website      String?
-  primaryColor String @default("#2563EB")
-  plan         String @default("STARTER")
+  primaryColor String  @default("#2563EB")
+  plan         String  @default("STARTER")
 
-  users        User[]
-  applicants   Applicant[]
-  students     Student[]
-  faculty      Faculty[]
-  programs     Program[]
-  subjects     Subject[]
-  rooms        Room[]
+  users         User[]
+  applicants    Applicant[]
+  students      Student[]
+  faculty       Faculty[]
+  programs      Program[]
+  subjects      Subject[]
+  rooms         Room[]
   academicYears AcademicYear[]
   feeStructures FeeStructure[]
-  auditLogs    AuditLog[]
+  auditLogs     AuditLog[]
   notifications Notification[]
 
   createdAt DateTime @default(now())
@@ -49,12 +49,13 @@ model User {
   school   School @relation(fields: [schoolId], references: [id])
   schoolId String
 
-  student  Student?
-  faculty  Faculty?
+  student   Student?
+  faculty   Faculty?
   auditLogs AuditLog[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  Notification Notification[]
 }
 
 // ─── Admissions ───────────────────────────────────────────────────────────────
@@ -74,16 +75,16 @@ model Applicant {
   photo       String?
 
   // Academic intent
-  programId   String?
-  program     Program? @relation(fields: [programId], references: [id])
-  applicantType String @default("FRESHMAN") // FRESHMAN | TRANSFEREE | RETURNEE
+  programId     String?
+  program       Program? @relation(fields: [programId], references: [id])
+  applicantType String   @default("FRESHMAN") // FRESHMAN | TRANSFEREE | RETURNEE
 
   // Status: PENDING | UNDER_REVIEW | ACCEPTED | REJECTED
-  status         String @default("PENDING")
-  reviewedBy     String?
-  reviewedAt     DateTime?
+  status          String    @default("PENDING")
+  reviewedBy      String?
+  reviewedAt      DateTime?
   rejectionReason String?
-  remarks        String?
+  remarks         String?
 
   school   School @relation(fields: [schoolId], references: [id])
   schoolId String
@@ -151,29 +152,29 @@ model Student {
   id        String @id @default(cuid())
   studentId String // e.g., 2024-00001 (auto-generated on acceptance)
 
-  firstName  String
-  lastName   String
-  middleName String?
-  email      String
-  phone      String?
-  photo      String?
-  address    String?
+  firstName   String
+  lastName    String
+  middleName  String?
+  email       String
+  phone       String?
+  photo       String?
+  address     String?
   dateOfBirth DateTime?
-  gender     String?
+  gender      String?
 
   // Status: ACTIVE | INACTIVE | GRADUATED | DROPPED
   status String @default("ACTIVE")
 
   program   Program? @relation(fields: [programId], references: [id])
   programId String?
-  yearLevel Int     @default(1)
+  yearLevel Int      @default(1)
 
-  school      School    @relation(fields: [schoolId], references: [id])
+  school      School     @relation(fields: [schoolId], references: [id])
   schoolId    String
   applicant   Applicant? @relation(fields: [applicantId], references: [id])
-  applicantId String?   @unique
-  user        User?     @relation(fields: [userId], references: [id])
-  userId      String?   @unique
+  applicantId String?    @unique
+  user        User?      @relation(fields: [userId], references: [id])
+  userId      String?    @unique
 
   enrollments   Enrollment[]
   soa           SOA[]
@@ -194,11 +195,11 @@ model Program {
   department  String?
   description String?
 
-  school      School      @relation(fields: [schoolId], references: [id])
-  schoolId    String
-  applicants  Applicant[]
-  students    Student[]
-  subjects    Subject[]
+  school     School      @relation(fields: [schoolId], references: [id])
+  schoolId   String
+  applicants Applicant[]
+  students   Student[]
+  subjects   Subject[]
 
   createdAt DateTime @default(now())
 
@@ -206,11 +207,11 @@ model Program {
 }
 
 model AcademicYear {
-  id        String  @id @default(cuid())
-  name      String  // e.g., "2024-2025"
+  id        String   @id @default(cuid())
+  name      String // e.g., "2024-2025"
   startDate DateTime
   endDate   DateTime
-  isActive  Boolean @default(false)
+  isActive  Boolean  @default(false)
 
   school    School     @relation(fields: [schoolId], references: [id])
   schoolId  String
@@ -220,22 +221,22 @@ model AcademicYear {
 }
 
 model Semester {
-  id           String       @id @default(cuid())
-  name         String       // e.g., "1st Semester"
-  type         String       // FIRST | SECOND | SUMMER
-  isActive     Boolean      @default(false)
-  maxUnits     Int          @default(24) // per student per term
-  startDate    DateTime
-  endDate      DateTime
+  id              String    @id @default(cuid())
+  name            String // e.g., "1st Semester"
+  type            String // FIRST | SECOND | SUMMER
+  isActive        Boolean   @default(false)
+  maxUnits        Int       @default(24) // per student per term
+  startDate       DateTime
+  endDate         DateTime
   enrollmentStart DateTime?
   enrollmentEnd   DateTime?
 
   academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
   academicYearId String
 
-  offerings    SubjectOffering[]
-  enrollments  Enrollment[]
-  soa          SOA[]
+  offerings   SubjectOffering[]
+  enrollments Enrollment[]
+  soa         SOA[]
 
   createdAt DateTime @default(now())
 }
@@ -264,11 +265,11 @@ model Subject {
 }
 
 model SubjectPrerequisite {
-  id              String  @id @default(cuid())
-  subject         Subject @relation("Subject", fields: [subjectId], references: [id])
-  subjectId       String
-  prerequisite    Subject @relation("Prerequisite", fields: [prerequisiteId], references: [id])
-  prerequisiteId  String
+  id             String  @id @default(cuid())
+  subject        Subject @relation("Subject", fields: [subjectId], references: [id])
+  subjectId      String
+  prerequisite   Subject @relation("Prerequisite", fields: [prerequisiteId], references: [id])
+  prerequisiteId String
 
   @@unique([subjectId, prerequisiteId])
 }
@@ -301,9 +302,9 @@ model Faculty {
   position   String?
   status     String  @default("ACTIVE")
 
-  school   School @relation(fields: [schoolId], references: [id])
+  school   School  @relation(fields: [schoolId], references: [id])
   schoolId String
-  user     User?  @relation(fields: [userId], references: [id])
+  user     User?   @relation(fields: [userId], references: [id])
   userId   String? @unique
 
   assignments TeacherAssignment[]
@@ -317,10 +318,10 @@ model Faculty {
 // ─── Subject Offerings ────────────────────────────────────────────────────────
 
 model SubjectOffering {
-  id          String @id @default(cuid())
-  maxStudents Int    @default(40)
+  id          String  @id @default(cuid())
+  maxStudents Int     @default(40)
   // DRAFT | PUBLISHED | CLOSED
-  status      String @default("DRAFT")
+  status      String  @default("DRAFT")
   section     String? // e.g., "CS3A"
 
   subject    Subject  @relation(fields: [subjectId], references: [id])
@@ -366,7 +367,7 @@ model TeacherAssignment {
 // ─── Enrollment ───────────────────────────────────────────────────────────────
 
 model Enrollment {
-  id String @id @default(cuid())
+  id     String @id @default(cuid())
   // PRE_ENROLLED | PAYMENT_PENDING | ENROLLED | DROPPED | COMPLETED
   status String @default("PRE_ENROLLED")
 
@@ -392,7 +393,7 @@ model Enrollment {
 model FeeStructure {
   id          String  @id @default(cuid())
   name        String
-  type        String  // PER_UNIT | FLAT | LAB
+  type        String // PER_UNIT | FLAT | LAB
   amount      Float
   description String?
   isActive    Boolean @default(true)
@@ -439,14 +440,14 @@ model SOAItem {
 }
 
 model Payment {
-  id            String  @id @default(cuid())
-  amount        Float
-  method        String  @default("CASH") // CASH | ONLINE | GCASH | BANK
+  id              String  @id @default(cuid())
+  amount          Float
+  method          String  @default("CASH") // CASH | ONLINE | GCASH | BANK
   // PENDING | VALIDATED | VOIDED
-  status        String  @default("PENDING")
-  receiptNumber String?
+  status          String  @default("PENDING")
+  receiptNumber   String?
   referenceNumber String?
-  notes         String?
+  notes           String?
 
   validatedBy String?
   validatedAt DateTime?
@@ -474,7 +475,7 @@ model Module {
 }
 
 model Material {
-  id       String @id @default(cuid())
+  id       String  @id @default(cuid())
   title    String
   type     String // PDF | VIDEO | LINK | FILE
   url      String?
@@ -503,13 +504,13 @@ model Assignment {
 }
 
 model AssignmentSubmission {
-  id          String  @id @default(cuid())
-  content     String?
-  fileUrl     String?
-  filename    String?
-  grade       Float?
-  feedback    String?
-  isLate      Boolean @default(false)
+  id       String  @id @default(cuid())
+  content  String?
+  fileUrl  String?
+  filename String?
+  grade    Float?
+  feedback String?
+  isLate   Boolean @default(false)
 
   assignment   Assignment @relation(fields: [assignmentId], references: [id])
   assignmentId String
@@ -550,7 +551,8 @@ model QuizQuestion {
   quiz   Quiz   @relation(fields: [quizId], references: [id])
   quizId String
 
-  createdAt DateTime @default(now())
+  createdAt  DateTime     @default(now())
+  QuizAnswer QuizAnswer[]
 }
 
 model QuizAttempt {
@@ -583,26 +585,26 @@ model QuizAnswer {
 }
 
 model GradeCriteria {
-  id                String @id @default(cuid())
-  offeringId        String @unique
-  quizWeight        Float  @default(30) // percent
-  assignmentWeight  Float  @default(30)
-  examWeight        Float  @default(40)
-  passingGrade      Float  @default(60)
+  id               String @id @default(cuid())
+  offeringId       String @unique
+  quizWeight       Float  @default(30) // percent
+  assignmentWeight Float  @default(30)
+  examWeight       Float  @default(40)
+  passingGrade     Float  @default(60)
 
   createdAt DateTime @default(now())
 }
 
 model Grade {
-  id               String @id @default(cuid())
-  quizAverage      Float?
+  id                String  @id @default(cuid())
+  quizAverage       Float?
   assignmentAverage Float?
-  midtermGrade     Float?
-  finalExamGrade   Float?
-  finalGrade       Float?
-  letterGrade      String?
+  midtermGrade      Float?
+  finalExamGrade    Float?
+  finalGrade        Float?
+  letterGrade       String?
   // IN_PROGRESS | PASSED | FAILED | INC | W
-  status           String @default("IN_PROGRESS")
+  status            String  @default("IN_PROGRESS")
 
   enrollment   Enrollment @relation(fields: [enrollmentId], references: [id])
   enrollmentId String     @unique
@@ -614,9 +616,9 @@ model Grade {
 }
 
 model LMSProgress {
-  id           String  @id @default(cuid())
-  materialId   String?
-  completed    Boolean @default(false)
+  id         String  @id @default(cuid())
+  materialId String?
+  completed  Boolean @default(false)
 
   enrollment   Enrollment @relation(fields: [enrollmentId], references: [id])
   enrollmentId String
@@ -635,22 +637,22 @@ model Notification {
   isRead  Boolean @default(false)
   link    String?
 
-  user     User?    @relation(fields: [userId], references: [id])
-  userId   String?
-  student  Student? @relation(fields: [studentId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?
+  student   Student? @relation(fields: [studentId], references: [id])
   studentId String?
-  school   School  @relation(fields: [schoolId], references: [id])
-  schoolId String
+  school    School   @relation(fields: [schoolId], references: [id])
+  schoolId  String
 
   createdAt DateTime @default(now())
 }
 
 model AuditLog {
-  id       String  @id @default(cuid())
-  action   String  // CREATE | UPDATE | DELETE | LOGIN | ACCEPT | REJECT | PAYMENT | GRADE
-  entity   String
-  entityId String?
-  details  String?
+  id        String  @id @default(cuid())
+  action    String // CREATE | UPDATE | DELETE | LOGIN | ACCEPT | REJECT | PAYMENT | GRADE
+  entity    String
+  entityId  String?
+  details   String?
   ipAddress String?
 
   user     User   @relation(fields: [userId], references: [id])
