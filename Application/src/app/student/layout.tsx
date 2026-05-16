@@ -6,11 +6,12 @@ import { Header } from '@/components/layout/Header'
 import { SyncProvider } from '@/components/shared/SyncProvider'
 import { ConfirmProvider } from '@/components/shared/ConfirmDialog'
 import { AIAssistant } from '@/components/shared/AIAssistant'
+import { AgentChatWidget } from '@/components/shared/AgentChatWidget'
 
 export default async function StudentLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/login')
-  const user = session.user as { role?: string; name?: string }
+  const user = session.user as { role?: string; name?: string; id?: string }
   if (!['STUDENT', 'SUPER_ADMIN'].includes(user.role ?? '')) redirect('/login')
   return (
     <ConfirmProvider>
@@ -23,6 +24,7 @@ export default async function StudentLayout({ children }: { children: React.Reac
         </div>
       </div>
       <AIAssistant userRole={user.role ?? 'STUDENT'} userName={user.name ?? 'Student'} portal="student" />
+      <AgentChatWidget userId={user.id ?? 'st_demo'} userName={user.name ?? 'Student'} userRole={user.role ?? 'STUDENT'} portal="student" />
     </ConfirmProvider>
   )
 }

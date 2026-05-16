@@ -4,28 +4,19 @@ import { useRouter } from 'next/navigation'
 import {
   Calendar, ShoppingCart, Monitor, MessageSquare,
   Plus, Eye, CheckCircle, XCircle, Clock, Inbox,
-  ChevronRight, AlertCircle, ClipboardList, LayoutTemplate,
-  FileText, Search, Send, Edit3, Users, Copy, Archive,
+  ChevronRight, AlertCircle,
 } from 'lucide-react'
 import { Card, SectionTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
-import { FormsCenter } from '@/components/shared/FormsCenter'
 import {
   MOCK_REQUESTS, MOCK_NOTIFICATIONS, MOCK_AUDIT_LOGS, nextReqNumber,
-  MOCK_FORMS, nextFormId,
 } from '@/lib/mock-data'
 import { formatDate, formatDateTime } from '@/lib/utils'
 import type {
   ChampionDept, RequestCategory, RequestType, RequestStatus,
-  RequestPriority, UniversalRequest, RequestActivity,
-  InstitutionalForm, FormStatus, FormVisibility, Role,
+  RequestPriority, UniversalRequest, RequestActivity, Role,
 } from '@/types'
-
-const FORM_BUILDER_ROLES: Role[] = [
-  'SUPER_ADMIN', 'REGISTRAR', 'HR_STAFF', 'ACCOUNTING',
-  'ACADEMIC_ADMIN', 'PURCHASING_OFFICER', 'AMO', 'DEAN',
-]
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -556,394 +547,13 @@ function GeneralForm({
   )
 }
 
-// ─── Form Builder Tab (full feature parity with /staff/forms) ────────────────
-
-const FORM_CATEGORIES = ['Request', 'Survey', 'Evaluation', 'Registration', 'Feedback', 'Incident Report', 'Other']
-const FORM_DEPARTMENTS = ['Human Resources', 'Academic Affairs', 'Administration', 'Asset Management', 'Finance', 'Registrar', 'IT Support', 'Other']
-const FORM_VISIBILITIES: { value: FormVisibility; label: string }[] = [
-  { value: 'PUBLIC_INTERNAL', label: 'All Users (Public Internal)' },
-  { value: 'STAFF_ONLY',      label: 'Staff Only' },
-  { value: 'STUDENT_ONLY',    label: 'Student Only' },
-  { value: 'DEPARTMENT_ONLY', label: 'Department Only' },
-  { value: 'CUSTOM',          label: 'Custom' },
-]
-
-function statusBorderColor(s: FormStatus) {
-  if (s === 'PUBLISHED') return 'border-l-4 border-l-emerald-500'
-  if (s === 'DRAFT')     return 'border-l-4 border-l-slate-400'
-  if (s === 'CLOSED')    return 'border-l-4 border-l-amber-500'
-  return 'border-l-4 border-l-gray-300'
-}
-
-function FormStatusBadge({ status }: { status: FormStatus }) {
-  const map: Record<FormStatus, string> = {
-    DRAFT:    'bg-slate-100 text-slate-600',
-    PUBLISHED:'bg-emerald-50 text-emerald-700',
-    CLOSED:   'bg-amber-50 text-amber-700',
-    ARCHIVED: 'bg-gray-100 text-gray-500',
-  }
-  return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${map[status]}`}>
-      {status}
-    </span>
-  )
-}
-
-function FormCategoryBadge({ category }: { category: string }) {
-  const map: Record<string, string> = {
-    'Request': 'bg-blue-50 text-blue-700',
-    'Survey': 'bg-violet-50 text-violet-700',
-    'Evaluation': 'bg-teal-50 text-teal-700',
-    'Feedback': 'bg-pink-50 text-pink-700',
-    'Registration': 'bg-orange-50 text-orange-700',
-    'Incident Report': 'bg-red-50 text-red-700',
-    'Other': 'bg-slate-100 text-slate-600',
-  }
-  return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${map[category] ?? 'bg-slate-100 text-slate-600'}`}>
-      {category}
-    </span>
-  )
-}
-
-function FormVisibilityBadge({ visibility }: { visibility: FormVisibility }) {
-  const map: Record<FormVisibility, string> = {
-    PUBLIC_INTERNAL: 'bg-sky-50 text-sky-700',
-    STAFF_ONLY:      'bg-indigo-50 text-indigo-700',
-    STUDENT_ONLY:    'bg-green-50 text-green-700',
-    DEPARTMENT_ONLY: 'bg-amber-50 text-amber-700',
-    CUSTOM:          'bg-slate-100 text-slate-600',
-  }
-  const labels: Record<FormVisibility, string> = {
-    PUBLIC_INTERNAL: 'Public',
-    STAFF_ONLY:      'Staff',
-    STUDENT_ONLY:    'Students',
-    DEPARTMENT_ONLY: 'Dept',
-    CUSTOM:          'Custom',
-  }
-  return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${map[visibility]}`}>
-      {labels[visibility]}
-    </span>
-  )
-}
-
-function FormBuilderTab({ onRefresh }: { onRefresh: () => void }) {
-  const router = useRouter()
-  const [tab, setTab] = useState<FormStatus | 'ALL'>('ALL')
-  const [search, setSearch] = useState('')
-  const [showNew, setShowNew] = useState(false)
-  const [creating, setCreating] = useState(false)
-
-  const [newTitle, setNewTitle]   = useState('')
-  const [newDesc, setNewDesc]     = useState('')
-  const [newCat, setNewCat]       = useState('Request')
-  const [newDept, setNewDept]     = useState('Administration')
-  const [newVis, setNewVis]       = useState<FormVisibility>('STAFF_ONLY')
-
-  const STATUS_TABS = ['ALL', 'PUBLISHED', 'DRAFT', 'CLOSED', 'ARCHIVED'] as const
-
-  const filtered = MOCK_FORMS.filter(f => {
-    if (tab !== 'ALL' && f.status !== tab) return false
-    if (search && !f.title.toLowerCase().includes(search.toLowerCase())) return false
-    return true
-  })
-
-  const totalForms = MOCK_FORMS.length
-  const published  = MOCK_FORMS.filter(f => f.status === 'PUBLISHED').length
-  const totalSubs  = MOCK_FORMS.reduce((s, f) => s + f.submissionCount, 0)
-  const drafts     = MOCK_FORMS.filter(f => f.status === 'DRAFT').length
-
-  function handleCreate() {
-    if (!newTitle.trim()) return
-    setCreating(true)
-    const id = nextFormId()
-    const now = new Date().toISOString()
-    const form: InstitutionalForm = {
-      id,
-      title: newTitle.trim(),
-      description: newDesc.trim() || undefined,
-      category: newCat,
-      department: newDept,
-      status: 'DRAFT',
-      visibility: newVis,
-      fields: [],
-      settings: {
-        oneSubmissionPerUser: false,
-        allowAnonymous: false,
-        autoCloseOnDeadline: false,
-        showProgressBar: true,
-        successMessage: 'Your response has been submitted successfully. Thank you!',
-      },
-      submissionCount: 0,
-      schoolId: 'school_1',
-      createdBy: 'u_staff',
-      createdByName: 'Staff',
-      createdAt: now,
-      updatedAt: now,
-    }
-    MOCK_FORMS.push(form)
-    setCreating(false)
-    setShowNew(false)
-    setNewTitle('')
-    setNewDesc('')
-    onRefresh()
-    router.push(`/staff/forms/${id}/builder`)
-  }
-
-  function togglePublish(form: InstitutionalForm) {
-    const f = MOCK_FORMS.find(x => x.id === form.id)
-    if (!f) return
-    if (f.status === 'PUBLISHED') {
-      f.status = 'DRAFT'
-      f.updatedAt = new Date().toISOString()
-    } else if (f.status === 'DRAFT') {
-      f.status = 'PUBLISHED'
-      f.publishedAt = new Date().toISOString()
-      f.updatedAt = new Date().toISOString()
-    }
-    onRefresh()
-  }
-
-  function duplicateForm(form: InstitutionalForm) {
-    const id = nextFormId()
-    const now = new Date().toISOString()
-    MOCK_FORMS.push({
-      ...form,
-      id,
-      title: `Copy of ${form.title}`,
-      status: 'DRAFT',
-      submissionCount: 0,
-      createdAt: now,
-      updatedAt: now,
-      publishedAt: undefined,
-      closedAt: undefined,
-    })
-    onRefresh()
-  }
-
-  function archiveForm(form: InstitutionalForm) {
-    const f = MOCK_FORMS.find(x => x.id === form.id)
-    if (!f) return
-    f.status = 'ARCHIVED'
-    f.updatedAt = new Date().toISOString()
-    onRefresh()
-  }
-
-  return (
-    <div>
-      {/* Stats row */}
-      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {[
-          { label: 'Total Forms',       value: totalForms, icon: FileText,      color: 'bg-brand-50 text-brand-500' },
-          { label: 'Published',         value: published,  icon: Send,          color: 'bg-emerald-50 text-emerald-600' },
-          { label: 'Total Submissions', value: totalSubs,  icon: ClipboardList, color: 'bg-violet-50 text-violet-600' },
-          { label: 'Drafts',            value: drafts,     icon: Edit3,         color: 'bg-slate-100 text-slate-500' },
-        ].map(s => {
-          const Icon = s.icon
-          return (
-            <Card key={s.label} padding="sm">
-              <div className="flex items-center gap-2.5">
-                <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${s.color}`}>
-                  <Icon className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 font-medium">{s.label}</p>
-                  <p className="text-xl font-bold tabular-nums text-slate-800">{s.value}</p>
-                </div>
-              </div>
-            </Card>
-          )
-        })}
-      </div>
-
-      {/* Toolbar: status filter + search + new button */}
-      <div className="mb-5 flex flex-wrap items-center gap-2">
-        <div className="flex gap-1 flex-wrap">
-          {STATUS_TABS.map(t => (
-            <button key={t}
-              onClick={() => setTab(t)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                tab === t
-                  ? 'bg-brand-500 text-white'
-                  : 'bg-white border border-[#e4ebf5] text-slate-600 hover:bg-brand-50'
-              }`}>
-              {t === 'ALL' ? 'All' : t.charAt(0) + t.slice(1).toLowerCase()}
-            </button>
-          ))}
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search forms…"
-              className="h-8 w-52 rounded-lg border border-[#e4ebf5] bg-white pl-8 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
-            />
-          </div>
-          <Button size="sm" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setShowNew(true)}>
-            New Form
-          </Button>
-        </div>
-      </div>
-
-      {/* Form cards grid */}
-      {filtered.length === 0 ? (
-        <Card>
-          <div className="flex flex-col items-center py-16 text-center">
-            <LayoutTemplate className="h-12 w-12 text-slate-300 mb-3" />
-            <p className="text-sm font-medium text-slate-500">No forms found</p>
-            <p className="text-xs text-slate-400 mt-1">Try adjusting your filters or create a new form</p>
-          </div>
-        </Card>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map(form => (
-            <div key={form.id}
-              className={`bg-white rounded-xl border border-[#e4ebf5] shadow-card overflow-hidden ${statusBorderColor(form.status)}`}>
-              <div className="p-4">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <h3 className="text-sm font-bold text-slate-800 leading-snug flex-1 min-w-0">{form.title}</h3>
-                  <FormStatusBadge status={form.status} />
-                </div>
-                {form.description && (
-                  <p className="text-xs text-slate-500 mb-3 line-clamp-2">{form.description}</p>
-                )}
-                <div className="flex flex-wrap gap-1.5 mb-3">
-                  <FormCategoryBadge category={form.category} />
-                  <FormVisibilityBadge visibility={form.visibility} />
-                </div>
-                <div className="flex items-center justify-between text-xs text-slate-500">
-                  <span className="truncate">{form.department}</span>
-                  <span className="shrink-0 ml-2">{form.submissionCount} submission{form.submissionCount !== 1 ? 's' : ''}</span>
-                </div>
-                <p className="text-xs text-slate-400 mt-1">{formatDate(form.createdAt)}</p>
-              </div>
-
-              {/* Action bar */}
-              <div className="border-t border-[#e4ebf5] bg-[#f8fafd] px-4 py-2.5 flex flex-wrap items-center gap-1.5">
-                <button
-                  onClick={() => router.push(`/staff/forms/${form.id}/builder`)}
-                  className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-brand-600 hover:bg-brand-50 transition-colors"
-                >
-                  <Edit3 className="h-3 w-3" />Edit
-                </button>
-                <button
-                  onClick={() => router.push(`/staff/forms/${form.id}/submissions`)}
-                  className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors"
-                >
-                  <Eye className="h-3 w-3" />Submissions
-                </button>
-                {(form.status === 'PUBLISHED' || form.status === 'DRAFT') && (
-                  <button
-                    onClick={() => togglePublish(form)}
-                    className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
-                      form.status === 'PUBLISHED'
-                        ? 'text-amber-600 hover:bg-amber-50'
-                        : 'text-emerald-600 hover:bg-emerald-50'
-                    }`}
-                  >
-                    {form.status === 'PUBLISHED'
-                      ? <><XCircle className="h-3 w-3" />Unpublish</>
-                      : <><Send className="h-3 w-3" />Publish</>}
-                  </button>
-                )}
-                <button
-                  onClick={() => duplicateForm(form)}
-                  className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors"
-                >
-                  <Copy className="h-3 w-3" />Duplicate
-                </button>
-                {form.status !== 'ARCHIVED' && (
-                  <button
-                    onClick={() => archiveForm(form)}
-                    className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 transition-colors"
-                  >
-                    <Archive className="h-3 w-3" />Archive
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* New Form Modal — full version */}
-      <Modal
-        open={showNew}
-        onClose={() => setShowNew(false)}
-        title="Create New Form"
-        description="Create a new institutional form. You'll be taken to the form builder after saving."
-        size="md"
-        footer={
-          <>
-            <Button variant="outline" onClick={() => setShowNew(false)}>Cancel</Button>
-            <Button onClick={handleCreate} loading={creating} disabled={!newTitle.trim()}>
-              Create & Open Builder
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Form Title <span className="text-red-500">*</span></label>
-            <input
-              value={newTitle}
-              onChange={e => setNewTitle(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleCreate()}
-              placeholder="e.g. Faculty Leave Request Form"
-              className="w-full rounded-lg border border-[#dce8f7] bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Description</label>
-            <textarea
-              value={newDesc}
-              onChange={e => setNewDesc(e.target.value)}
-              placeholder="Brief description of this form's purpose…"
-              rows={2}
-              className="w-full rounded-lg border border-[#dce8f7] bg-white px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-500/20"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Category</label>
-              <select value={newCat} onChange={e => setNewCat(e.target.value)}
-                className="w-full rounded-lg border border-[#dce8f7] bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20">
-                {FORM_CATEGORIES.map(c => <option key={c}>{c}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Department</label>
-              <select value={newDept} onChange={e => setNewDept(e.target.value)}
-                className="w-full rounded-lg border border-[#dce8f7] bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20">
-                {FORM_DEPARTMENTS.map(d => <option key={d}>{d}</option>)}
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Visibility</label>
-            <select value={newVis} onChange={e => setNewVis(e.target.value as FormVisibility)}
-              className="w-full rounded-lg border border-[#dce8f7] bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20">
-              {FORM_VISIBILITIES.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
-            </select>
-          </div>
-        </div>
-      </Modal>
-    </div>
-  )
-}
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function RequestCenter({ portal, userId, userName, userRole, championDept }: Props) {
   const [tick, setTick] = useState(0)
   const forceUpdate = useCallback(() => setTick((t) => t + 1), [])
 
-  const canBuildForms = FORM_BUILDER_ROLES.includes(userRole as Role) && portal === 'staff'
-
-  const [activeTab, setActiveTab] = useState<'my' | 'new' | 'incoming' | 'forms' | 'builder'>('my')
+  const [activeTab, setActiveTab] = useState<'my' | 'new' | 'incoming'>('my')
 
   // New Request state
   const [newStep, setNewStep] = useState<'type-select' | 'form' | 'success'>('type-select')
@@ -1099,12 +709,10 @@ export function RequestCenter({ portal, userId, userName, userRole, championDept
     setFormError(null)
   }
 
-  const tabs: { key: 'my' | 'new' | 'incoming' | 'forms' | 'builder'; label: string; icon: React.ElementType }[] = [
+  const tabs: { key: 'my' | 'new' | 'incoming'; label: string; icon: React.ElementType }[] = [
     { key: 'my', label: 'My Requests', icon: Inbox },
     { key: 'new', label: 'New Request', icon: Plus },
     ...(championDept ? [{ key: 'incoming' as const, label: 'Incoming', icon: AlertCircle }] : []),
-    { key: 'forms', label: 'Forms', icon: ClipboardList },
-    ...(canBuildForms ? [{ key: 'builder' as const, label: 'Form Builder', icon: LayoutTemplate }] : []),
   ]
 
   return (
@@ -1122,7 +730,7 @@ export function RequestCenter({ portal, userId, userName, userRole, championDept
       </SectionTitle>
 
       {/* Stats strip — only on request tabs */}
-      <div className={`grid grid-cols-3 gap-4 mb-6 ${activeTab === 'forms' || activeTab === 'builder' ? 'hidden' : ''}`}>
+      <div className="grid grid-cols-3 gap-4 mb-6">
         {[
           { label: 'My Requests', value: myRequests.length, color: 'text-brand-700', bg: 'bg-brand-50' },
           { label: 'Pending', value: pendingCount, color: 'text-amber-700', bg: 'bg-amber-50' },
@@ -1506,16 +1114,6 @@ export function RequestCenter({ portal, userId, userName, userRole, championDept
             </div>
           )}
         </div>
-      )}
-
-      {/* ── Tab: Forms ───────────────────────────────────────────────────── */}
-      {activeTab === 'forms' && (
-        <FormsCenter portal={portal} userId={userId} userName={userName} userRole={userRole} onRefresh={forceUpdate} />
-      )}
-
-      {/* ── Tab: Form Builder ────────────────────────────────────────────── */}
-      {activeTab === 'builder' && canBuildForms && (
-        <FormBuilderTab onRefresh={forceUpdate} />
       )}
 
       {/* Detail modal */}

@@ -10,7 +10,7 @@ import {
   Briefcase, UserRound, ClipboardCheck, CalendarClock, Kanban,
   Package, PackageSearch, Wrench, ScanBarcode, ArchiveRestore, Tag,
   Receipt, TrendingUp, ShoppingCart, Store, BarChart2, DollarSign, TrendingDown, Inbox, LifeBuoy,
-  LayoutTemplate,
+  Code2, LayoutTemplate, MessagesSquare, ListOrdered,
 } from 'lucide-react'
 import { cn, initials, ROLE_LABELS } from '@/lib/utils'
 import type { Role } from '@/types'
@@ -23,10 +23,14 @@ const STAFF_NAV: { group: string; items: NavItem[] }[] = [
     items: [
       { href: '/staff/dashboard', label: 'Dashboard', icon: LayoutDashboard,
         roles: ['SUPER_ADMIN','ADMISSION_OFFICER','REGISTRAR','TREASURER','ACADEMIC_ADMIN'] as Role[] },
-      { href: '/staff/requests', label: 'Request Center', icon: Inbox },
-      { href: '/staff/support',  label: 'Support Center', icon: LifeBuoy },
+      { href: '/staff/requests',     label: 'Request Center', icon: Inbox },
+      { href: '/staff/support',      label: 'Support Center', icon: LifeBuoy },
+      { href: '/staff/agent-inbox',  label: 'Agent Inbox',    icon: MessagesSquare,
+        roles: ['SUPER_ADMIN','REGISTRAR','ACCOUNTING','HR_STAFF','AMO','PURCHASING_OFFICER','ADMISSION_OFFICER','ACADEMIC_ADMIN','TREASURER'] as Role[] },
       { href: '/staff/audit',  label: 'Audit Logs',      icon: Shield, roles: ['SUPER_ADMIN'] as Role[] },
       { href: '/staff/users',  label: 'User Management', icon: Users,  roles: ['SUPER_ADMIN'] as Role[] },
+      { href: '/staff/api',    label: 'API',             icon: Code2,
+        roles: ['SUPER_ADMIN','REGISTRAR','ACADEMIC_ADMIN','DEAN','TREASURER','ACCOUNTING','HR_STAFF','AMO','PURCHASING_OFFICER','ADMISSION_OFFICER'] as Role[] },
     ],
   },
   {
@@ -61,6 +65,7 @@ const STAFF_NAV: { group: string; items: NavItem[] }[] = [
     group: 'Accounting',
     items: [
       { href: '/staff/accounting',              label: 'Acct Dashboard',   icon: LayoutDashboard, roles: ['SUPER_ADMIN','ACCOUNTING'] as Role[] },
+      { href: '/staff/accounting/fees',         label: 'Fee Management',   icon: ListOrdered,     roles: ['SUPER_ADMIN','ACCOUNTING'] as Role[] },
       { href: '/staff/accounting/cashflow',     label: 'Cashflow',         icon: TrendingUp,      roles: ['SUPER_ADMIN','ACCOUNTING'] as Role[] },
       { href: '/staff/accounting/expenses',     label: 'Expenses',         icon: TrendingDown,    roles: ['SUPER_ADMIN','ACCOUNTING'] as Role[] },
       { href: '/staff/accounting/reports',      label: 'Reports',          icon: BarChart2,       roles: ['SUPER_ADMIN','ACCOUNTING'] as Role[] },
@@ -112,7 +117,6 @@ const STAFF_NAV: { group: string; items: NavItem[] }[] = [
     items: [
       { href: '/staff/forms', label: 'Form Builder', icon: LayoutTemplate,
         roles: ['SUPER_ADMIN','REGISTRAR','HR_STAFF','ACCOUNTING','ACADEMIC_ADMIN','PURCHASING_OFFICER','AMO','DEAN'] as Role[] },
-      { href: '/staff/forms/center', label: 'Forms', icon: ClipboardList },
     ],
   },
   {
@@ -138,12 +142,12 @@ const DEAN_NAV: { group: string; items: { href: string; label: string; icon: Rea
   {
     group: 'People',
     items: [
-      { href: '/staff/team',     label: 'Team Hub',    icon: Users },
-      { href: '/staff/calendar', label: 'Calendar',    icon: CalendarDays },
-      { href: '/staff/requests', label: 'Request Center', icon: Inbox },
-      { href: '/staff/support',  label: 'Support Center', icon: LifeBuoy },
-      { href: '/staff/forms', label: 'Form Builder', icon: LayoutTemplate },
-      { href: '/staff/forms/center', label: 'Forms', icon: ClipboardList },
+      { href: '/staff/team',          label: 'Team Hub',       icon: Users },
+      { href: '/staff/calendar',      label: 'Calendar',       icon: CalendarDays },
+      { href: '/staff/requests',      label: 'Request Center', icon: Inbox },
+      { href: '/staff/support',       label: 'Support Center', icon: LifeBuoy },
+      { href: '/staff/agent-inbox',   label: 'Agent Inbox',    icon: MessagesSquare },
+      { href: '/staff/forms',         label: 'Form Builder',   icon: LayoutTemplate },
     ],
   },
 ]

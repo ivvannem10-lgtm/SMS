@@ -329,7 +329,9 @@ interface FormsCenterProps {
   userId: string
   userName: string
   userRole: string
-  onRefresh?: () => void  // called after submission so parent (RequestCenter) can sync builder tab
+  onRefresh?: () => void
+  /** When set, only shows forms owned by this dept or routed to it for approval */
+  deptFilter?: string
 }
 
 function visibilityMatchesPortal(vis: FormVisibility, portal: 'staff' | 'teacher' | 'student'): boolean {
@@ -340,7 +342,7 @@ function visibilityMatchesPortal(vis: FormVisibility, portal: 'staff' | 'teacher
   return false
 }
 
-export function FormsCenter({ portal, userId, userName, userRole, onRefresh }: FormsCenterProps) {
+export function FormsCenter({ portal, userId, userName, userRole, onRefresh, deptFilter }: FormsCenterProps) {
   const [, forceUpdate] = useState(0)
   const refresh = useCallback(() => {
     forceUpdate(n => n + 1)
@@ -352,13 +354,19 @@ export function FormsCenter({ portal, userId, userName, userRole, onRefresh }: F
   const [activeTab, setActiveTab] = useState<'forms' | 'my-submissions'>('forms')
   const [fillForm, setFillForm] = useState<InstitutionalForm | null>(null)
 
+  const matchesDept = (f: InstitutionalForm) => {
+    if (!deptFilter) return true
+    return f.department === deptFilter || f.settings.routeToDept === deptFilter
+  }
+
   const draftCount = portal === 'staff'
-    ? MOCK_FORMS.filter(f => f.status === 'DRAFT').length
+    ? MOCK_FORMS.filter(f => f.status === 'DRAFT' && matchesDept(f)).length
     : 0
 
   const publishedForms = MOCK_FORMS.filter(f => {
     if (f.status !== 'PUBLISHED') return false
     if (!visibilityMatchesPortal(f.visibility, portal)) return false
+    if (!matchesDept(f)) return false
     if (categoryFilter !== 'All' && f.category !== categoryFilter) return false
     if (search && !f.title.toLowerCase().includes(search.toLowerCase())) return false
     return true
@@ -431,6 +439,17 @@ export function FormsCenter({ portal, userId, userName, userRole, onRefresh }: F
               ))}
             </div>
           </div>
+
+          {/* Department filter banner */}
+          {deptFilter && (
+            <div className="mb-4 flex items-center gap-2.5 rounded-xl border border-brand-200 bg-brand-50 px-4 py-2.5 text-xs text-brand-700">
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-brand-500 text-white font-bold text-[10px] shrink-0">F</span>
+              <span>
+                Showing <span className="font-bold">{deptFilter}</span> forms —
+                forms owned by or routed to your department for approval.
+              </span>
+            </div>
+          )}
 
           {/* Draft notice for staff */}
           {draftCount > 0 && (

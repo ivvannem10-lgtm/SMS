@@ -12,7 +12,7 @@ import {
   MOCK_BUDGET_RESERVATIONS, MOCK_NOTIFICATIONS, MOCK_AUDIT_LOGS,
 } from '@/lib/mock-data'
 import type { PurchaseRequest, PRStatus, PRPriority, PRItem } from '@/types'
-import { Plus, ChevronDown, CheckCircle2, XCircle, Clock, Eye } from 'lucide-react'
+import { Plus, ChevronDown, CheckCircle2, XCircle, Clock, Eye, ArrowRight, Bell } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import type { SessionUser } from '@/types'
 
@@ -67,8 +67,9 @@ export default function PurchaseRequestsPage() {
     notes: '',
   })
   const [items, setItems] = useState<PRItem[]>([{ ...EMPTY_ITEM, id: 'new_0' }])
-  const [saving, setSaving] = useState(false)
+  const [saving, setSaving]         = useState(false)
   const [budgetError, setBudgetError] = useState('')
+  const [successPR, setSuccessPR]   = useState<{ prNumber: string; dept: string; amount: number } | null>(null)
 
   const totalAmount = items.reduce((s, i) => s + i.quantity * i.estimatedCost, 0)
 
@@ -139,14 +140,29 @@ export default function PurchaseRequestsPage() {
         }
       }
 
-      MOCK_NOTIFICATIONS.push({ id:`notif_${Date.now()}`, title:'New Purchase Request', message:`${newPR.prNumber} submitted for ${form.department}`, type:'PR', isRead:false, schoolId:'school_1', createdAt:new Date().toISOString() })
-      MOCK_AUDIT_LOGS.unshift({ id:`al_${Date.now()}`, action:'CREATE_PR', entity:'PurchaseRequest', entityId:newPR.id, details:`PR ${newPR.prNumber} submitted`, userId:user?.id??'u_purchasing', schoolId:'school_1', createdAt:new Date().toISOString() })
+      const now = new Date().toISOString()
+      // Notify submitter — submitted confirmation
+      MOCK_NOTIFICATIONS.push({
+        id: `notif_${Date.now()}`, type: 'PR', isRead: false, schoolId: 'school_1', createdAt: now,
+        title: `Purchase Request Submitted — ${newPR.prNumber}`,
+        message: `Your request "${newPR.title}" (${formatCurrency(totalAmount)}) has been submitted.\n\nNext Step → Step 1 of 2: Awaiting Accounting Officer review. You will be notified once it is approved or returned.`,
+        link: '/staff/purchasing/requests',
+      })
+      // Notify accounting — action required
+      MOCK_NOTIFICATIONS.push({
+        id: `notif_${Date.now() + 1}`, type: 'PR', isRead: false, schoolId: 'school_1', createdAt: now,
+        userId: 'u_accounting',
+        title: `New Purchase Request Requires Your Review — ${newPR.prNumber}`,
+        message: `${newPR.requestedByName} submitted a purchase request from ${form.department} for ${formatCurrency(totalAmount)}.\n\nAction Required → Step 1 of 2: Review and approve or reject this request.`,
+        link: '/staff/purchasing/requests',
+      })
+      MOCK_AUDIT_LOGS.unshift({ id:`al_${Date.now()}`, action:'CREATE_PR', entity:'PurchaseRequest', entityId:newPR.id, details:`PR ${newPR.prNumber} submitted by ${user?.name}`, userId:user?.id??'u_purchasing', schoolId:'school_1', createdAt: now })
 
       setPRs([...MOCK_PURCHASE_REQUESTS])
+      setSuccessPR({ prNumber: newPR.prNumber, dept: form.department, amount: totalAmount })
       setForm({ title:'', department:DEPARTMENTS[0], purpose:'', priority:'NORMAL', notes:'' })
       setItems([{ ...EMPTY_ITEM, id: 'new_0' }])
       setSaving(false)
-      setCreate(false)
     }, 600)
   }
 
@@ -177,7 +193,34 @@ export default function PurchaseRequestsPage() {
       : 'APPROVED'
 
     MOCK_PURCHASE_REQUESTS[idx] = { ...pr, approvalChain: chain, status: newStatus, updatedAt: new Date().toISOString(), approvedAt: allApproved ? new Date().toISOString() : undefined }
-    MOCK_NOTIFICATIONS.push({ id:`notif_${Date.now()}`, title:'PR Approved', message:`${pr.prNumber} approved by ${user?.name}`, type:'PR', isRead:false, schoolId:'school_1', createdAt:new Date().toISOString() })
+    const now2 = new Date().toISOString()
+    if (allApproved) {
+      // Fully approved — notify submitter
+      MOCK_NOTIFICATIONS.push({
+        id: `notif_${Date.now()}`, type: 'PR', isRead: false, schoolId: 'school_1', createdAt: now2,
+        userId: pr.requestedBy,
+        title: `Purchase Request Fully Approved — ${pr.prNumber}`,
+        message: `Great news! Your purchase request "${pr.title}" has been fully approved by all parties.\n\nNext Step → Proceed to create a Purchase Order in the Purchasing module to begin procurement.`,
+        link: '/staff/purchasing/orders',
+      })
+    } else {
+      // Step 1 approved — notify purchasing officer
+      MOCK_NOTIFICATIONS.push({
+        id: `notif_${Date.now()}`, type: 'PR', isRead: false, schoolId: 'school_1', createdAt: now2,
+        userId: 'u_purchasing',
+        title: `Purchase Request Ready for Your Review — ${pr.prNumber}`,
+        message: `${pr.prNumber} from ${pr.department} (${formatCurrency(pr.totalAmount)}) has passed Accounting review.\n\nAction Required → Step 2 of 2: Review and approve or reject this purchase request.`,
+        link: '/staff/purchasing/requests',
+      })
+      // Notify submitter of progress
+      MOCK_NOTIFICATIONS.push({
+        id: `notif_${Date.now() + 1}`, type: 'PR', isRead: false, schoolId: 'school_1', createdAt: now2,
+        userId: pr.requestedBy,
+        title: `Purchase Request Update — ${pr.prNumber}`,
+        message: `Your request "${pr.title}" has been approved by the Accounting Office.\n\nNext Step → Step 2 of 2: Awaiting Purchasing Officer final approval.`,
+        link: '/staff/purchasing/requests',
+      })
+    }
     setPRs([...MOCK_PURCHASE_REQUESTS])
     setViewPR(MOCK_PURCHASE_REQUESTS[idx])
   }
@@ -192,7 +235,13 @@ export default function PurchaseRequestsPage() {
     // Release reservation
     const res = MOCK_BUDGET_RESERVATIONS.find(r => r.prId === pr.id && r.status === 'ACTIVE')
     if (res) { res.status = 'RELEASED'; res.releasedAt = new Date().toISOString() }
-    MOCK_NOTIFICATIONS.push({ id:`notif_${Date.now()}`, title:'PR Rejected', message:`${pr.prNumber} was rejected`, type:'PR', isRead:false, schoolId:'school_1', createdAt:new Date().toISOString() })
+    MOCK_NOTIFICATIONS.push({
+      id: `notif_${Date.now()}`, type: 'PR', isRead: false, schoolId: 'school_1', createdAt: new Date().toISOString(),
+      userId: pr.requestedBy,
+      title: `Purchase Request Rejected — ${pr.prNumber}`,
+      message: `Your purchase request "${pr.title}" was rejected by ${user?.name ?? 'the reviewer'}.\n\nReason: ${rejectReason}\n\nNext Step → You may revise and resubmit a new Purchase Request addressing the rejection reason.`,
+      link: '/staff/purchasing/requests',
+    })
     setPRs([...MOCK_PURCHASE_REQUESTS])
     setViewPR(MOCK_PURCHASE_REQUESTS[idx])
     setReject(false)
@@ -321,6 +370,59 @@ export default function PurchaseRequestsPage() {
               </div>
             )}
 
+            {/* Budget Balance */}
+            {(() => {
+              const budget = MOCK_BUDGETS.find(b => b.department === viewPR.department)
+              if (!budget) return (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
+                  No budget allocated for <strong>{viewPR.department}</strong>.
+                </div>
+              )
+              const spent     = MOCK_BUDGET_EXPENSES.filter(e => e.budgetId === budget.id).reduce((s, e) => s + e.amount, 0)
+              const reserved  = MOCK_BUDGET_RESERVATIONS.filter(r => r.budgetId === budget.id && r.status === 'ACTIVE' && r.prId !== viewPR.id).reduce((s, r) => s + r.amount, 0)
+              const available = budget.amount - spent - reserved
+              const sufficient = available >= viewPR.totalAmount
+              const shortfall  = viewPR.totalAmount - available
+              return (
+                <div className={`rounded-xl border px-4 py-3 ${sufficient ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'}`}>
+                  <p className="text-xs font-bold uppercase tracking-widest mb-3 text-slate-600">Department Budget Balance</p>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm mb-3">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Total Budget</span>
+                      <span className="font-semibold text-slate-800">{formatCurrency(budget.amount)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Spent</span>
+                      <span className="font-semibold text-red-600">−{formatCurrency(spent)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Reserved (other PRs)</span>
+                      <span className="font-semibold text-amber-600">−{formatCurrency(reserved)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">This PR Amount</span>
+                      <span className="font-semibold text-brand-700">{formatCurrency(viewPR.totalAmount)}</span>
+                    </div>
+                  </div>
+                  <div className={`flex items-center justify-between rounded-lg px-3 py-2.5 ${sufficient ? 'bg-emerald-100' : 'bg-red-100'}`}>
+                    <span className={`text-sm font-bold ${sufficient ? 'text-emerald-700' : 'text-red-700'}`}>
+                      Available Balance
+                    </span>
+                    <div className="text-right">
+                      <p className={`text-xl font-bold tabular-nums ${sufficient ? 'text-emerald-700' : 'text-red-700'}`}>
+                        {formatCurrency(available)}
+                      </p>
+                      <p className={`text-xs font-semibold mt-0.5 ${sufficient ? 'text-emerald-600' : 'text-red-600'}`}>
+                        {sufficient
+                          ? `✓ Sufficient — ${formatCurrency(available - viewPR.totalAmount)} will remain after approval`
+                          : `✗ Short by ${formatCurrency(shortfall)} — insufficient budget`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+
             {/* Items */}
             <div>
               <p className="text-xs font-bold text-brand-700 uppercase tracking-widest mb-2">Requested Items</p>
@@ -354,6 +456,61 @@ export default function PurchaseRequestsPage() {
                 </Table>
               </Card>
             </div>
+
+            {/* Next Step Banner */}
+            {(() => {
+              const pendingStep = viewPR.approvalChain.find(a => a.status === 'PENDING')
+              if (!pendingStep || ['APPROVED','REJECTED','CLOSED','CANCELLED'].includes(viewPR.status)) return null
+              const isAccounting = pendingStep.role === 'ACCOUNTING'
+              return (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-3">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-200 mt-0.5">
+                    <ArrowRight className="h-3.5 w-3.5 text-amber-700" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-amber-800 uppercase tracking-widest mb-0.5">
+                      Next Step — Step {pendingStep.step} of {viewPR.approvalChain.length}
+                    </p>
+                    <p className="text-sm font-semibold text-amber-900">
+                      Awaiting {isAccounting ? 'Accounting Officer' : 'Purchasing Officer'} Review
+                    </p>
+                    <p className="text-xs text-amber-700 mt-0.5">
+                      {isAccounting
+                        ? 'The Accounting Office must verify budget availability and approve this request before it proceeds to the Purchasing Officer.'
+                        : 'Accounting has approved this request. The Purchasing Officer must give final approval before procurement begins.'}
+                    </p>
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Fully approved next step */}
+            {viewPR.status === 'APPROVED' && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-start gap-3">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-200 mt-0.5">
+                  <ArrowRight className="h-3.5 w-3.5 text-emerald-700" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-emerald-800 uppercase tracking-widest mb-0.5">Next Step — Fully Approved</p>
+                  <p className="text-sm font-semibold text-emerald-900">Create a Purchase Order</p>
+                  <p className="text-xs text-emerald-700 mt-0.5">This request has been approved by all parties. Proceed to the Purchase Orders module to create a PO and begin procurement.</p>
+                </div>
+              </div>
+            )}
+
+            {/* Rejected next step */}
+            {viewPR.status === 'REJECTED' && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 flex items-start gap-3">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-200 mt-0.5">
+                  <XCircle className="h-3.5 w-3.5 text-red-700" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-red-700 uppercase tracking-widest mb-0.5">Request Rejected</p>
+                  <p className="text-sm font-semibold text-red-900">Revise and Resubmit</p>
+                  <p className="text-xs text-red-700 mt-0.5">Address the rejection reason and submit a new purchase request. The requester has been notified.</p>
+                </div>
+              </div>
+            )}
 
             {/* Approval Chain */}
             <div>
@@ -402,12 +559,104 @@ export default function PurchaseRequestsPage() {
       </Modal>
 
       {/* Create PR Modal */}
-      <Modal open={createOpen} onClose={() => setCreate(false)} title="Create Purchase Request" size="xl"
-        footer={<>
-          <Button variant="outline" onClick={() => setCreate(false)}>Cancel</Button>
-          <Button variant="primary" loading={saving} disabled={!form.title || !form.purpose || items.length === 0} onClick={handleCreate}>Submit PR</Button>
-        </>}
+      <Modal
+        open={createOpen}
+        onClose={() => { setCreate(false); setSuccessPR(null) }}
+        title={successPR ? 'Request Submitted' : 'Create Purchase Request'}
+        size="xl"
+        footer={
+          successPR ? (
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => { setCreate(false); setSuccessPR(null) }}>Close</Button>
+              <Button variant="soft" onClick={() => setSuccessPR(null)}>Submit Another PR</Button>
+            </div>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => setCreate(false)}>Cancel</Button>
+              <Button variant="primary" loading={saving} disabled={!form.title || !form.purpose || items.length === 0} onClick={handleCreate}>Submit PR</Button>
+            </>
+          )
+        }
       >
+        {/* ── Success panel ──────────────────────────────────────────────────── */}
+        {successPR ? (
+          <div className="py-4 space-y-5">
+            {/* Confirmation header */}
+            <div className="flex flex-col items-center text-center py-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 mb-3">
+                <CheckCircle2 className="h-7 w-7 text-emerald-600" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">Purchase Request Submitted!</h3>
+              <p className="text-sm text-slate-500 mt-1">Your request has been recorded and forwarded for review.</p>
+            </div>
+
+            {/* PR details */}
+            <div className="rounded-xl bg-brand-50 border border-brand-100 px-5 py-4">
+              <p className="text-xs text-brand-500 font-semibold uppercase tracking-widest mb-2">Request Details</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xl font-bold font-mono text-brand-700">{successPR.prNumber}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{successPR.dept}</p>
+                </div>
+                <p className="text-2xl font-bold text-brand-600">{formatCurrency(successPR.amount)}</p>
+              </div>
+            </div>
+
+            {/* Approval workflow next steps */}
+            <div className="rounded-xl border border-[#e4ebf5] overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-3 bg-[#f8fafd] border-b border-[#e4ebf5]">
+                <Bell className="h-4 w-4 text-brand-500" />
+                <p className="text-xs font-bold text-slate-700 uppercase tracking-widest">Approval Workflow — What Happens Next</p>
+              </div>
+              <div className="divide-y divide-[#f0f4fa]">
+                {[
+                  {
+                    step: 1, icon: CheckCircle2, done: true,
+                    label: 'Submitted',
+                    desc: 'Your purchase request has been recorded and budget reserved.',
+                    color: 'text-emerald-600', bg: 'bg-emerald-50',
+                  },
+                  {
+                    step: 2, icon: Clock, done: false,
+                    label: 'Accounting Review',
+                    desc: 'The Accounting Officer will verify budget availability and approve or return the request. You\'ll be notified once actioned.',
+                    color: 'text-amber-600', bg: 'bg-amber-50',
+                    current: true,
+                  },
+                  {
+                    step: 3, icon: Clock, done: false,
+                    label: 'Purchasing Officer Approval',
+                    desc: 'After Accounting approves, the Purchasing Officer will do the final review before procurement begins.',
+                    color: 'text-slate-400', bg: 'bg-slate-50',
+                  },
+                  {
+                    step: 4, icon: ArrowRight, done: false,
+                    label: 'Purchase Order Created',
+                    desc: 'Once fully approved, a Purchase Order will be created to begin the procurement process.',
+                    color: 'text-slate-400', bg: 'bg-slate-50',
+                  },
+                ].map(s => (
+                  <div key={s.step} className={`flex items-start gap-3 px-4 py-3 ${s.current ? 'bg-amber-50/50' : ''}`}>
+                    <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full mt-0.5 ${s.bg}`}>
+                      <s.icon className={`h-3.5 w-3.5 ${s.color}`} />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className={`text-xs font-bold ${s.current ? 'text-amber-700' : s.done ? 'text-emerald-700' : 'text-slate-400'}`}>
+                          Step {s.step}: {s.label}
+                        </p>
+                        {s.current && <span className="rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5">CURRENT</span>}
+                        {s.done && <span className="rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5">DONE</span>}
+                      </div>
+                      <p className={`text-xs mt-0.5 leading-relaxed ${s.current ? 'text-amber-600' : s.done ? 'text-emerald-600' : 'text-slate-400'}`}>{s.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+
         <div className="space-y-5">
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
@@ -486,6 +735,7 @@ export default function PurchaseRequestsPage() {
             <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{budgetError}</div>
           )}
         </div>
+        )} {/* end else (form view) */}
       </Modal>
     </div>
   )

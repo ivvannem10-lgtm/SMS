@@ -167,30 +167,34 @@ export default function StudentSubjectPage({ params }: { params: { offeringId: s
         ))}
       </div>
 
-      {/* Grade card */}
-      {grade && (
-        <div id="grades">
-          <Card>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold text-slate-700">Grade Summary</h3>
-              <GradeBadge status={grade.status} />
-            </div>
+      {/* Grade card — always shown */}
+      <div id="grades">
+        <Card>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-slate-700">Grade Summary</h3>
+            {grade ? <GradeBadge status={grade.status} /> : <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Pending</span>}
+          </div>
+          {grade ? (
             <div className="grid grid-cols-4 gap-3">
               {[
-                { label: 'Quiz Avg', value: grade.quizAverage, color: 'text-violet-700' },
-                { label: 'Assignment Avg', value: grade.assignmentAverage, color: 'text-blue-700' },
-                { label: 'Midterm', value: grade.midtermGrade, color: 'text-orange-700' },
-                { label: 'Final Grade', value: grade.finalGrade, color: grade.finalGrade ? (grade.finalGrade >= 75 ? 'text-emerald-700' : 'text-red-700') : 'text-slate-400' },
+                { label: 'Quiz Avg',        value: grade.quizAverage,       color: 'text-violet-700' },
+                { label: 'Assignment Avg',  value: grade.assignmentAverage,  color: 'text-blue-700' },
+                { label: 'Midterm',         value: grade.midtermGrade,       color: 'text-orange-700' },
+                { label: 'Final Grade',     value: grade.finalGrade,         color: grade.finalGrade ? (grade.finalGrade >= 75 ? 'text-emerald-700' : 'text-red-700') : 'text-slate-400' },
               ].map((g) => (
                 <div key={g.label} className="text-center rounded-xl bg-slate-50 p-3">
                   <p className="text-xs text-slate-400">{g.label}</p>
-                  <p className={`text-xl font-bold ${g.color}`}>{g.value ?? '—'}</p>
+                  <p className={`text-xl font-bold ${g.color}`}>{g.value?.toFixed(1) ?? '—'}</p>
                 </div>
               ))}
             </div>
-          </Card>
-        </div>
-      )}
+          ) : (
+            <p className="text-sm text-slate-400 text-center py-4">
+              Your grades will appear here once your professor submits and the Registrar approves them.
+            </p>
+          )}
+        </Card>
+      </div>
 
       {/* Attendance summary */}
       <div id="attendance">

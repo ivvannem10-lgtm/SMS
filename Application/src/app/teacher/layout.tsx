@@ -6,11 +6,12 @@ import { Header } from '@/components/layout/Header'
 import { SyncProvider } from '@/components/shared/SyncProvider'
 import { ConfirmProvider } from '@/components/shared/ConfirmDialog'
 import { AIAssistant } from '@/components/shared/AIAssistant'
+import { AgentChatWidget } from '@/components/shared/AgentChatWidget'
 
 export default async function TeacherLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/login')
-  const user = session.user as { role?: string; name?: string }
+  const user = session.user as { role?: string; name?: string; id?: string }
   if (!['TEACHER', 'SUPER_ADMIN'].includes(user.role ?? '')) redirect('/login')
   return (
     <ConfirmProvider>
@@ -23,6 +24,7 @@ export default async function TeacherLayout({ children }: { children: React.Reac
         </div>
       </div>
       <AIAssistant userRole={user.role ?? 'TEACHER'} userName={user.name ?? 'Teacher'} portal="teacher" />
+      <AgentChatWidget userId={user.id ?? 'u_teacher'} userName={user.name ?? 'Teacher'} userRole={user.role ?? 'TEACHER'} portal="teacher" />
     </ConfirmProvider>
   )
 }

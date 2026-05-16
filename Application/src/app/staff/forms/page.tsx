@@ -280,7 +280,20 @@ export default function FormsListPage() {
                   <span className="truncate">{form.department}</span>
                   <span className="shrink-0 ml-2">{form.submissionCount} submissions</span>
                 </div>
-                <p className="text-xs text-slate-400 mt-1">{formatDate(form.createdAt)}</p>
+                {form.processOwner ? (
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-white text-[9px] font-bold shrink-0">
+                      {form.processOwner.name.split(' ').map(w => w[0]).slice(0, 2).join('')}
+                    </div>
+                    <span className="text-xs text-slate-500 truncate">
+                      <span className="text-slate-400">Owner: </span>
+                      <span className="font-medium text-slate-600">{form.processOwner.name}</span>
+                      <span className="text-slate-400"> · {form.processOwner.roleLabel}</span>
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 mt-1">{formatDate(form.createdAt)}</p>
+                )}
               </div>
               <div className="border-t border-[#e4ebf5] bg-[#f8fafd] px-4 py-2.5 flex flex-wrap items-center gap-1.5">
                 {canCreate && (

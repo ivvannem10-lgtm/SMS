@@ -16,7 +16,7 @@ import { Input, Select, Textarea } from '@/components/ui/Input'
 import { ProcessFlow } from '@/components/shared/ProcessFlow'
 import { useConfirm } from '@/components/shared/ConfirmDialog'
 import {
-  MOCK_SOA, MOCK_STUDENTS, MOCK_SEMESTERS, MOCK_TREASURY_LOGS,
+  MOCK_SOA, MOCK_STUDENTS, MOCK_SEMESTERS, MOCK_TREASURY_LOGS, MOCK_FEE_STRUCTURES,
 } from '@/lib/mock-data'
 import { fullName, formatCurrency, formatDate, formatDateTime, generateReceiptNumber } from '@/lib/utils'
 import type { SOA, SOAItem, Payment, TreasuryTransaction } from '@/types'
@@ -574,11 +574,43 @@ export default function SOADetailPage({ params }: { params: { studentId: string 
         </>}
       >
         <div className="space-y-4">
-          <Select label="Charge Type" value={chargeType} onChange={(e) => setChargeType(e.target.value)}>
-            {CHARGE_TYPES.map((t) => <option key={t} value={t}>{t.charAt(0) + t.slice(1).toLowerCase()}</option>)}
-          </Select>
-          <Input label="Description *" placeholder="e.g. Tuition Fee — 18 units" value={chargeDesc} onChange={(e) => setChargeDesc(e.target.value)} />
-          <Input label="Amount (₱) *" type="number" placeholder="0.00" value={chargeAmount} onChange={(e) => setChargeAmount(e.target.value)} />
+          {/* Standard Fees from Accounting */}
+          {MOCK_FEE_STRUCTURES.filter(f => f.isActive).length > 0 && (
+            <div>
+              <p className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-1.5">Standard Fees (from Accounting)</p>
+              <div className="rounded-xl border border-[#dce8f7] divide-y divide-slate-100 max-h-44 overflow-y-auto">
+                {MOCK_FEE_STRUCTURES.filter(f => f.isActive).map(fee => (
+                  <button
+                    key={fee.id}
+                    type="button"
+                    onClick={() => {
+                      setChargeDesc(fee.name)
+                      setChargeAmount(String(fee.amount))
+                      setChargeType(fee.category)
+                    }}
+                    className="w-full flex items-center justify-between px-3 py-2 hover:bg-brand-50 transition-colors text-left"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-800 truncate">{fee.name}</p>
+                      <p className="text-xs text-slate-400 truncate">{fee.applicability === 'PER_UNIT' ? 'per unit' : fee.applicability.replace(/_/g, ' ').toLowerCase()}</p>
+                    </div>
+                    <span className="text-sm font-semibold text-brand-700 ml-3 shrink-0 font-mono">{formatCurrency(fee.amount)}{fee.applicability === 'PER_UNIT' ? '/unit' : ''}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1">Click a fee to pre-fill the form below. You can adjust the amount before adding.</p>
+            </div>
+          )}
+
+          <div className="border-t border-slate-100 pt-3 space-y-3">
+            <p className="text-xs font-bold text-slate-600 uppercase tracking-wide">Custom / Manual Charge</p>
+            <Select label="Charge Type" value={chargeType} onChange={(e) => setChargeType(e.target.value)}>
+              {CHARGE_TYPES.map((t) => <option key={t} value={t}>{t.charAt(0) + t.slice(1).toLowerCase()}</option>)}
+            </Select>
+            <Input label="Description *" placeholder="e.g. Tuition Fee — 18 units" value={chargeDesc} onChange={(e) => setChargeDesc(e.target.value)} />
+            <Input label="Amount (₱) *" type="number" placeholder="0.00" value={chargeAmount} onChange={(e) => setChargeAmount(e.target.value)} />
+          </div>
+
           <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 flex items-start gap-2">
             <Info className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
             <p className="text-xs text-amber-700">This action will be logged under your name ({cashier}).</p>

@@ -387,14 +387,21 @@ export interface Enrollment {
   updatedAt: string
 }
 
+export type FeeCategory = 'TUITION' | 'MISC' | 'LAB' | 'REG' | 'OTHER'
+export type FeeApplicability = 'ALL_STUDENTS' | 'PER_UNIT' | 'NEW_STUDENTS_ONLY' | 'OPTIONAL'
+
 export interface FeeStructure {
   id: string
   name: string
-  type: string
+  category: FeeCategory
   amount: number
   description?: string
+  applicability: FeeApplicability
   isActive: boolean
   schoolId: string
+  createdBy?: string
+  createdAt: string
+  updatedAt?: string
 }
 
 export interface SOA {
@@ -1388,6 +1395,75 @@ export interface FormSettings {
   routeToDept?: string       // department to notify on submission
 }
 
+// ─── Form Process Owner ───────────────────────────────────────────────────────
+export interface FormProcessOwner {
+  userId?: string
+  name: string
+  roleLabel: string   // e.g. "Accounting Officer"
+  role?: string       // e.g. "ACCOUNTING"
+  email?: string
+  department?: string
+}
+
+// ─── Form Automation ─────────────────────────────────────────────────────────
+export type FormTrigger = 'ON_SUBMIT' | 'ON_APPROVE' | 'ON_REJECT' | 'ON_DEADLINE'
+export type FormActionType =
+  | 'NOTIFY_DEPT'
+  | 'SEND_EMAIL'
+  | 'CREATE_REQUEST'
+  | 'CREATE_TICKET'
+  | 'SET_STATUS'
+  | 'ASSIGN_TO'
+
+export interface FormAutomationRule {
+  id: string
+  label?: string
+  trigger: FormTrigger
+  action: FormActionType
+  isActive: boolean
+  config: {
+    // NOTIFY_DEPT
+    department?: string
+    // SEND_EMAIL
+    emailTo?: 'submitter' | 'dept_head' | 'custom'
+    emailAddress?: string
+    emailSubject?: string
+    emailBody?: string
+    // CREATE_REQUEST
+    requestCategory?: string
+    requestType?: string
+    // CREATE_TICKET
+    ticketCategory?: string
+    ticketPriority?: string
+    // SET_STATUS
+    submissionStatus?: string
+    // ASSIGN_TO
+    assignToRole?: string
+  }
+}
+
+// ─── Form Approval Workflow ───────────────────────────────────────────────────
+export type FormApprovalMode = 'SEQUENTIAL' | 'ANY_ONE' | 'ALL'
+
+export interface FormApprovalStep {
+  id: string
+  order: number
+  approverRole: string
+  approverLabel: string
+  required: boolean
+  autoApproveDays?: number  // auto-approve if no action after N days
+}
+
+export interface FormApprovalConfig {
+  enabled: boolean
+  mode: FormApprovalMode
+  steps: FormApprovalStep[]
+  notifySubmitterOnApprove: boolean
+  notifySubmitterOnReject: boolean
+  allowResubmitOnReject: boolean
+  approvalMessage?: string  // message shown to submitter while pending
+}
+
 export interface InstitutionalForm {
   id: string
   title: string
@@ -1400,6 +1476,9 @@ export interface InstitutionalForm {
   visibilityDepts?: string[]  // for DEPARTMENT_ONLY / CUSTOM
   fields: FormField[]
   settings: FormSettings
+  processOwner?: FormProcessOwner
+  automation?: FormAutomationRule[]
+  approval?: FormApprovalConfig
   category: string            // 'Request' | 'Survey' | 'Evaluation' | 'Registration' | 'Feedback' | 'Other'
   tags?: string[]
   submissionCount: number
@@ -1424,4 +1503,173 @@ export interface FormSubmission {
   submittedAt: string
   reviewedAt?: string
   reviewedBy?: string
+}
+
+// ─── Chart of Accounts ────────────────────────────────────────────────────────
+export type AccountType = 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE'
+export interface ChartOfAccount {
+  id: string
+  code: string          // e.g. "1001"
+  name: string
+  type: AccountType
+  parentCode?: string   // for sub-accounts
+  description?: string
+  isActive: boolean
+  balance: number       // running balance (mock)
+  schoolId: string
+  createdAt: string
+}
+
+// ─── Journal / General Ledger ─────────────────────────────────────────────────
+export type JournalEntryStatus = 'DRAFT' | 'POSTED' | 'VOID'
+export interface JournalLine {
+  id: string
+  accountId: string
+  accountCode: string
+  accountName: string
+  debit: number
+  credit: number
+  description?: string
+}
+export interface JournalEntry {
+  id: string
+  entryNumber: string   // JE-2025-0001
+  date: string
+  description: string
+  reference?: string
+  sourceModule: 'TREASURY' | 'PURCHASING' | 'AMS' | 'HRIS' | 'MANUAL' | 'PAYROLL'
+  sourceId?: string
+  sourceDept?: string
+  lines: JournalLine[]
+  totalDebit: number
+  totalCredit: number
+  status: JournalEntryStatus
+  postedBy?: string
+  postedAt?: string
+  voidReason?: string
+  schoolId: string
+  createdBy: string
+  createdAt: string
+}
+
+// ─── Approval Workflow ────────────────────────────────────────────────────────
+export type FinApprovalType = 'EXPENSE' | 'BUDGET_ADJUSTMENT' | 'JOURNAL_ENTRY' | 'PAYROLL'
+export type FinApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ESCALATED'
+export type FinApproverRole = 'ACCOUNTING' | 'SUPER_ADMIN'
+export interface FinApprovalStep {
+  id: string
+  level: number
+  approverRole: FinApproverRole
+  approverName?: string
+  status: FinApprovalStatus
+  comment?: string
+  actionAt?: string
+}
+export interface FinancialApproval {
+  id: string
+  approvalNumber: string  // FA-2025-0001
+  type: FinApprovalType
+  title: string
+  amount: number
+  department?: string
+  requestedBy: string
+  requestedByName: string
+  requestedAt: string
+  steps: FinApprovalStep[]
+  currentStep: number
+  status: FinApprovalStatus
+  schoolId: string
+  createdAt: string
+  updatedAt: string
+}
+
+// ─── Payroll ──────────────────────────────────────────────────────────────────
+export type PayrollStatus = 'DRAFT' | 'FOR_APPROVAL' | 'APPROVED' | 'PROCESSED' | 'PAID'
+export interface PayrollItem {
+  id: string
+  employeeId: string
+  employeeName: string
+  department: string
+  position: string
+  basicPay: number
+  allowances: number
+  deductions: number
+  netPay: number
+  taxWithheld: number
+}
+export interface PayrollRun {
+  id: string
+  runNumber: string   // PR-2025-04
+  period: string      // "April 2025"
+  periodStart: string
+  periodEnd: string
+  items: PayrollItem[]
+  totalGross: number
+  totalDeductions: number
+  totalNet: number
+  status: PayrollStatus
+  processedBy?: string
+  processedAt?: string
+  approvedBy?: string
+  paidAt?: string
+  journalEntryId?: string
+  schoolId: string
+  createdAt: string
+}
+
+// ─── Financial Period ─────────────────────────────────────────────────────────
+export type FinPeriodType = 'MONTHLY' | 'QUARTERLY' | 'ANNUAL'
+export interface FinancialPeriod {
+  id: string
+  name: string       // "Q1 2025", "January 2025"
+  type: FinPeriodType
+  startDate: string
+  endDate: string
+  isClosed: boolean
+  closedAt?: string
+  closedBy?: string
+  schoolId: string
+}
+
+// ─── Agent Chat (Talk to Agent) ───────────────────────────────────────────────
+export type AgentAvailability = 'ONLINE' | 'AWAY' | 'OFFLINE'
+export type ChatSenderType = 'USER' | 'AGENT' | 'SYSTEM'
+export type AgentChatStatus = 'OPEN' | 'ASSIGNED' | 'RESOLVED' | 'CLOSED'
+export type AgentChatDept = 'GENERAL' | 'REGISTRAR' | 'FINANCE' | 'HR' | 'ASSETS' | 'ACADEMIC' | 'ADMISSIONS' | 'PURCHASING'
+
+export interface ChatMessage {
+  id: string
+  chatId: string
+  senderType: ChatSenderType
+  senderId: string
+  senderName: string
+  content: string
+  timestamp: string
+  isRead: boolean
+}
+
+export interface AgentChat {
+  id: string
+  chatNumber: string
+  userId: string
+  userName: string
+  userRole: string
+  portal: 'staff' | 'teacher' | 'student'
+  department: AgentChatDept
+  subject: string
+  status: AgentChatStatus
+  agentId?: string
+  agentName?: string
+  messages: ChatMessage[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AgentInfo {
+  id: string
+  name: string
+  role: string
+  department: string
+  availability: AgentAvailability
+  activeChats: number
 }

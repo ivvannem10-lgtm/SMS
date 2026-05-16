@@ -1103,11 +1103,11 @@ export function SupportCenter({ portal, userId, userName, userRole, agentDept }:
                 <textarea
                   value={createDescription}
                   onChange={e => setCreateDescription(e.target.value)}
-                  placeholder="Describe your concern in detail (minimum 20 characters)..."
+                  placeholder="Describe your concern in detail..."
                   rows={5}
                   className="w-full rounded-xl border border-[#dce8f7] px-4 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500/15 resize-none"
                 />
-                <p className="text-2xs text-slate-400 mt-1">{createDescription.length} / 20 characters minimum</p>
+                <p className="text-2xs text-slate-400 mt-1">{createDescription.length} characters</p>
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">Priority</label>
@@ -1127,7 +1127,7 @@ export function SupportCenter({ portal, userId, userName, userRole, agentDept }:
               </div>
               <button
                 onClick={submitTicket}
-                disabled={!createSubject.trim() || createDescription.length < 20}
+                disabled={!createSubject.trim() || !createDescription.trim()}
                 className="w-full rounded-xl bg-brand-500 px-4 py-3 text-sm font-bold text-white hover:bg-brand-600 transition-colors disabled:opacity-40"
               >
                 Submit Ticket

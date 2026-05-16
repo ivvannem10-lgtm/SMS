@@ -10,6 +10,8 @@ A SaaS **School Management System** built as a "train system" — each module is
 
 ```bash
 npm run dev             # Start on http://localhost:3000
+npm run dev:2           # Start on http://localhost:3001 (independent cookie jar in Chrome — for multi-role testing)
+npm run dev:3           # Start on http://localhost:3002
 npm run build           # Verify production build
 npm run lint            # ESLint — react/no-unescaped-entities is OFF (apostrophes/quotes in JSX don't need escaping)
 
@@ -18,6 +20,15 @@ npm run db:push         # Apply Prisma schema to SQLite (no migration file)
 npm run db:seed         # Seed demo data via prisma/seed.ts
 npm run db:studio       # Open Prisma GUI
 npm run db:reset        # prisma migrate reset --force + re-seed
+```
+
+**Quick dev login** (no need to use the login form):
+```
+http://localhost:3000/dev                         # Visual panel — click any demo account
+http://localhost:3000/api/dev/login?as=admin      # Auto-login as Super Admin
+http://localhost:3000/api/dev/login?as=student    # Auto-login as Student
+http://localhost:3000/api/dev/login?as=accounting # Auto-login as Accounting Officer
+# Append &redirect=/path to land on a specific page
 ```
 
 **First-time setup:**
@@ -98,7 +109,8 @@ Every Prisma model has a `schoolId` foreign key. All API routes must scope queri
 - **Edit student records**: REGISTRAR + SUPER_ADMIN only (`canEdit` check)
 - **Registrar** sees all departments — no department filter on student data
 - **Dean** is scoped to their `deanDepartment` college; sidebar shows Dean-only nav (`DEAN_NAV`)
-- **Accounting** (`ACCOUNTING` role) portal: `/staff/accounting` — sees Accounting Dashboard, Cashflow, Expenses, Reports, and Budget Mgmt. Does NOT see Cashier/Student Accounts/Transaction Logs (TREASURER only).
+- **Accounting** (`ACCOUNTING` role) portal: `/staff/accounting` — sees full Accounting nav (Dashboard, General Ledger, Journal Entries, Chart of Accounts, Cashflow, Expenses, Approvals, Payroll, Analytics, Reports). Does NOT see Cashier/Student Accounts/Transaction Logs (TREASURER only).
+- **API Management** (`/staff/api`) — visible to all 10 admin roles (not TEACHER/STUDENT). SUPER_ADMIN sees all API keys; other admins see only keys they created. Revoking is own-keys-only for non-SUPER_ADMIN.
 - **Treasurer** (`TREASURER` role) portal: `/staff/treasury` — sees Cashier, Student Accounts, Transaction Logs, Collections, Official Receipts. Does NOT see Accounting/Purchasing sections.
 - **Purchasing Officer** (`PURCHASING_OFFICER` role) portal: `/staff/purchasing` — sees only the Purchasing nav group (Dashboard, Purchase Requests, Purchase Orders, Vendors).
 - **HR_STAFF** sees only the Human Resources nav group (`/staff/hr/*`) — no access to admissions, registrar, treasury, or academic sections
@@ -181,7 +193,10 @@ All three sidebars (Staff, Teacher, Student) use a local `signOutOpen` state to 
 | `src/types/index.ts` | All TypeScript interfaces — quiz types (`AssessmentType`, `QuizQuestionType`, `AttemptGradingMethod`, `TimerBehavior`, `NavigationMode`, `QuestionDisplayMode`, `FeedbackTiming`, `FeedbackLevel`, `QuizSecuritySettings`, `ConditionalRelease`), rubric types (`Rubric`, `RubricCriterion`, `RubricLevel`, `CriterionScore`, `PTSubmission`, `PerformanceTask`), grade types (`GradeCriteria` with `customCategories?`, `disabledDefaults?`; `CustomGradeCategory`), extended `Quiz` (20+ optional customization fields), HRIS types (`JobPosting`, `JobApplication`, `HREmployee`, `HRDocument`, `OnboardingTask`, `HROnboardingRecord`, `HRLeaveRequest` + 9 enum types), AMS types (`Asset`, `AssetDeployment`, `AssetHistory`, `Consumable`, `ConsumableTransaction`, `MaintenanceLog`, `AssetTagFormat`, `AssetInclusion`, `TagFormatComponent` + 9 enum types) |
 | `src/lib/utils.ts` | `cn()`, `fullName()`, `initials()`, grade helpers, `ROLE_PORTALS`, `FACULTY_DEPT_TO_COLLEGE` |
 | `src/lib/auth.ts` | NextAuth options, `DEMO_USERS` (plain-text pw), `deanDepartment` in JWT |
-| `src/lib/mock-data.ts` | All in-memory data — applicants, students, offerings, rooms, faculty, `MOCK_ROOM_AVAILABILITY`, `MOCK_STAFF_MEMBERS` (Team Hub), `MOCK_GRADE_CRITERIA` |
+| `src/lib/mock-data.ts` | All in-memory data — applicants, students, offerings, rooms, faculty, `MOCK_ROOM_AVAILABILITY`, `MOCK_STAFF_MEMBERS` (Team Hub), `MOCK_GRADE_CRITERIA`, financial data, accounting data |
+| `src/lib/api-keys.ts` | API key crypto helpers — `generateApiKey()`, `hashKey()`, `validateApiKey()` |
+| `src/lib/mock-api-keys.ts` | API key store — `MOCK_API_KEYS`, `ApiScope`, `API_ADMIN_ROLES`, `ROLE_DEFAULT_SCOPES` |
+| `src/lib/api-middleware.ts` | REST API request validation — `validateRequest(request, scope)`, response helpers `ok/err/created/options` |
 | `src/lib/db.ts` | Singleton `PrismaClient` |
 | `tailwind.config.ts` | Color tokens (navy brand, sidebar, gold, surface), font, shadows |
 | `src/app/globals.css` | CSS custom property design tokens + font imports |
@@ -377,6 +392,9 @@ If the UI renders as unstyled HTML (no CSS), a stale production `.next` build is
 | Quiz settings customization | Fields mutated on `quiz` object in `MOCK_QUIZZES` (in-place) | Hard reload |
 | HRIS (employees, applications, leaves, onboarding) | `MOCK_HR_EMPLOYEES`, `MOCK_JOB_APPLICATIONS`, `MOCK_HR_LEAVES`, `MOCK_HR_ONBOARDING` in `mock-data.ts` | Hard reload |
 | AMS (assets, deployments, history, consumables, maintenance) | `MOCK_ASSETS`, `MOCK_ASSET_DEPLOYMENTS`, `MOCK_ASSET_HISTORY`, `MOCK_CONSUMABLES`, `MOCK_CONSUMABLE_TRANSACTIONS`, `MOCK_MAINTENANCE_LOGS`, `MOCK_ASSET_TAG_FORMATS` in `mock-data.ts` | Hard reload |
+| Accounting (CoA, journal entries, approvals, payroll) | `MOCK_CHART_OF_ACCOUNTS`, `MOCK_JOURNAL_ENTRIES`, `MOCK_FIN_APPROVALS`, `MOCK_PAYROLL_RUNS` in `mock-data.ts` | Hard reload |
+| API keys | `MOCK_API_KEYS` in `mock-api-keys.ts` | Hard reload |
+| Forms & submissions | `MOCK_FORMS`, `MOCK_FORM_SUBMISSIONS` in `mock-data.ts` | Hard reload |
 | Everything else (students, SOA, grades) | Module-level arrays in `mock-data.ts` | Hard reload |
 
 - **User Management** (`/staff/users`) — SUPER_ADMIN only. Two tabs: **Users** (searchable table of all system accounts, read-only) and **Role Management**. Role Management shows the 8 system roles as read-only cards (lock icon, cannot be edited/deleted) plus a custom-role table with Create/Edit/Delete. Create-role modal has a 7-module × 4-permission (view/create/edit/delete) matrix; enabling create/edit/delete auto-enables view. Custom roles stored in `MOCK_CUSTOM_ROLES: CustomRole[]` (mutable). Types: `ModuleKey`, `ModulePermission`, `CustomRole`, `SystemUser` in `types/index.ts`.
@@ -553,12 +571,78 @@ If the UI renders as unstyled HTML (no CSS), a stale production `.next` build is
   | `/staff/ams/assets` | `assets` | `MOCK_ASSETS` |
   | `/staff/ams/consumables` | `consumables` | `MOCK_CONSUMABLES` |
 
+- **Universal Form Builder & Publishing System** — `/staff/forms`, `/staff/forms/[id]/builder`, `/staff/forms/[id]/submissions`, `/staff/forms/center`, `/teacher/forms`, `/student/forms`. Shared component: `src/components/shared/FormsCenter.tsx`.
+  - **Form Builder list** (`/staff/forms`) — Stats (Total Forms, Published, Total Submissions, Drafts), status filter tabs, search, form card grid with left-border color coding (emerald=PUBLISHED, slate=DRAFT, amber=CLOSED). Actions per card: Edit, Submissions, Publish/Unpublish, Duplicate, Archive. Create modal: title, description, category, department, visibility (PUBLIC_INTERNAL / STAFF_ONLY / STUDENT_ONLY / DEPARTMENT_ONLY / CUSTOM). On create → redirects to builder page.
+  - **Form Builder** (`/staff/forms/[id]/builder`) — 3-panel: left palette (field types), center canvas (drag-to-reorder), right editor (field properties). Field types: text, textarea, number, email, phone, date, select, radio, checkbox, file, rating, signature. Conditional logic: show/hide fields based on other field values. Autosave. Preview modal.
+  - **Submissions inbox** (`/staff/forms/[id]/submissions`) — Table of submissions, review modal with field-by-field answers.
+  - **FormsCenter** (shared) — Browse Forms + My Submissions tabs. Visibility filtering: staff sees ALL published forms (including STUDENT_ONLY); students see only PUBLIC_INTERNAL + STUDENT_ONLY; teachers see PUBLIC_INTERNAL + STAFF_ONLY. Draft forms never shown in browse. Staff sees a "N draft forms" notice pointing to Form Builder tab. Form fill modal with conditional logic, auto-fill, required validation.
+  - **Request Center integration** — `RequestCenter.tsx` embeds both a **Forms** tab (`<FormsCenter>`) and a **Form Builder** tab (`<FormBuilderTab>`) directly. Both share the parent's `forceUpdate` via `onRefresh` prop so publish/submission changes are immediately reflected across tabs. `FORM_BUILDER_ROLES` gates the builder tab to authorized staff roles. Staff portal: Form Builder visible to SUPER_ADMIN, REGISTRAR, HR_STAFF, ACCOUNTING, ACADEMIC_ADMIN, PURCHASING_OFFICER, AMO, DEAN.
+  - **Types** (in `types/index.ts`): `FormFieldType`, `FormStatus`, `FormVisibility`, `FormSubmissionStatus`, `FormCondition`, `FormField`, `FormSettings`, `InstitutionalForm`, `FormSubmission`.
+  - **Mock data**: `MOCK_FORMS` (5 forms), `MOCK_FORM_SUBMISSIONS` (3 submissions), `nextFormId()`, `nextFsubId()` in `mock-data.ts`.
+
+- **Institutional Accounting Ecosystem** (`/staff/accounting`) — ACCOUNTING + SUPER_ADMIN only. Complete enterprise financial platform integrated with Treasury, Purchasing, HRIS, AMS, and Budget systems.
+
+  **Accounting ≠ Treasury distinction**: Treasury handles student payments, OR generation, cash receiving. Accounting handles financial records, budget allocation, expense tracking, cashflow, reporting, procurement expenses, payroll-ready records.
+
+  **Accounting nav group** (10 items): Dashboard, General Ledger, Journal Entries, Chart of Accounts, Cashflow, Expenses, Approvals, Payroll, Analytics, Reports.
+
+  **Dashboard** (`/staff/accounting`) — Rebuilt with 6 stat cards (Total Institutional Funds, Revenue YTD, Expenses YTD, Net Cashflow, Budget Utilization %, Pending Approvals). Integration sync row showing Treasury/Purchasing/AMS/HRIS record counts. Monthly cashflow AreaChart. Expense breakdown PieChart. Department budget progress bars. Recent journal entries list. Pending approvals list. Quick-action buttons to key sub-pages.
+
+  **Chart of Accounts** (`/staff/accounting/chart-of-accounts`) — Configurable financial account structure. Accounts grouped by type (ASSET/LIABILITY/EQUITY/REVENUE/EXPENSE) with color-coded headers. Account hierarchy: parent accounts (bold, no balance) + sub-accounts (indented). Columns: Code, Name, Balance, Status. Add/Edit modal with code, name, type, parentCode (sub-account selector), description. Data: `MOCK_CHART_OF_ACCOUNTS` (28 pre-loaded accounts covering all 5 types). Types: `AccountType`, `ChartOfAccount` in `types/index.ts`.
+
+  **General Ledger** (`/staff/accounting/ledger`) — Complete transaction history from `MOCK_JOURNAL_ENTRIES`. Filters: account selector, date range, source module, search. Entry table: JE# (monospace), Date, Description, Source Module badge, Reference, Debit (green), Credit (red), Status badge, View. Slide-over detail panel: full journal lines in debit/credit columns with totals row. Source module badges: TREASURY=blue, PURCHASING=violet, AMS=amber, HRIS=pink, PAYROLL=teal, MANUAL=slate.
+
+  **Journal Entries** (`/staff/accounting/journal`) — Create and manage journal entries. New entry modal: date, description, reference, source module, dynamic journal lines (account selector, debit, credit, description per line), running totals, imbalance warning. "Save as Draft" or "Post Entry" — Post blocked if debit ≠ credit. Void posted entries (requires reason). Data: `MOCK_JOURNAL_ENTRIES` (7 seeded entries across TREASURY/PURCHASING/HRIS/AMS/PAYROLL/MANUAL sources). Types: `JournalEntryStatus`, `JournalLine`, `JournalEntry`. Sequence helper: `nextJENumber()` → `JE-2025-NNNN`.
+
+  **Approvals** (`/staff/accounting/approvals`) — Multi-step financial approval workflow. Approval types: EXPENSE, BUDGET_ADJUSTMENT, JOURNAL_ENTRY, PAYROLL. Card layout (not table): each card shows approval #, type badge, title, amount, department, requester, step timeline (level dots with role + status icons). ACCOUNTING role approves step 1; SUPER_ADMIN approves step 2. Approve modal (comment); Reject modal (reason required). On full approval → status APPROVED. Data: `MOCK_FIN_APPROVALS` (3 seeded). Types: `FinApprovalType`, `FinApprovalStatus`, `FinApproverRole`, `FinApprovalStep`, `FinancialApproval`. Sequence: `nextFANumber()` → `FA-2025-NNNN`.
+
+  **Payroll** (`/staff/accounting/payroll`) — Payroll-ready module connected to HRIS employees. Payroll run cards showing period, status, gross/deductions/net totals, employee count. Actions: Process (DRAFT→FOR_APPROVAL), Approve (FOR_APPROVAL→APPROVED), Mark as Paid (APPROVED→PAID) + generates journal entry. View Details modal: per-employee table (Basic Pay, Allowances, Deductions, Tax, Net Pay) + totals. New Payroll Run modal: auto-populates from `MOCK_HR_EMPLOYEES`. Data: `MOCK_PAYROLL_RUNS` (2 runs: April PAID + May FOR_APPROVAL). Types: `PayrollStatus`, `PayrollItem`, `PayrollRun`. Sequence: `nextPRRunNumber()`.
+
+  **Analytics** (`/staff/accounting/analytics`) — Financial analytics dashboard. Period filter (Month/Quarter/Year). Stat cards: Total Revenue, Total Expenses, Net Surplus/Deficit (green/red), Budget Utilization %. Monthly Revenue vs Expenses BarChart (6 months). Expense Breakdown PieChart by category. Department Budget Utilization horizontal bar chart (green<80%, amber 80-99%, red≥100%). Revenue Sources PieChart from COA revenue accounts. Top Spending Departments table with utilization % and trend arrows. Financial Health Indicators: Liquidity Ratio, Debt Ratio, Revenue Growth %, Operating Margin %.
+
+  **Mock data additions** (all in `mock-data.ts`): `MOCK_CHART_OF_ACCOUNTS` (28 accounts), `MOCK_JOURNAL_ENTRIES` (7 entries), `MOCK_FIN_APPROVALS` (3 approvals), `MOCK_PAYROLL_RUNS` (2 runs). Persistence: same as all mock data — resets on hard reload.
+
+- **REST API v1** (`/api/v1/`) — External-facing REST API with API key authentication. Accessible to all admin roles via `/staff/api` (Code2 icon in sidebar).
+
+  **Authentication**: `Authorization: Bearer sis_live_XXXX` or `x-api-key: sis_live_XXXX` header. All CORS headers included on every route.
+
+  **Endpoints**:
+  | Method | Path | Scope |
+  |---|---|---|
+  | GET | `/api/v1/health` | Public |
+  | GET/POST | `/api/v1/students` | `students:read/write` |
+  | GET/PATCH/DELETE | `/api/v1/students/:id` | `students:read/write` |
+  | GET | `/api/v1/courses` | `courses:read` |
+  | GET | `/api/v1/grades` | `grades:read` (PUBLISHED only) |
+  | GET/POST | `/api/v1/enrollments` | `enrollments:read/write` |
+  | GET | `/api/v1/staff` | `staff:read` (no passwords) |
+  | GET/POST | `/api/v1/keys` | NextAuth session (admin roles) |
+  | DELETE | `/api/v1/keys/:id` | NextAuth session (own keys only for non-SUPER_ADMIN) |
+
+  **API key libraries**:
+  - `src/lib/api-keys.ts` — `generateApiKey()` (returns `{ key, prefix, hash }`), `hashKey()` (SHA-256), `validateApiKey(raw, storedKeys)`
+  - `src/lib/mock-api-keys.ts` — `ApiKey`, `ApiScope` (11 values), `API_SCOPES`, `API_ADMIN_ROLES` (10 admin roles), `ROLE_DEFAULT_SCOPES` (per-role scope presets for Generate modal), `MOCK_API_KEYS` (starts empty)
+  - `src/lib/api-middleware.ts` — `validateRequest(request, requiredScope)` → updates `lastUsedAt` on hit; `ok()`, `created()`, `err()`, `options()` response helpers
+
+  **API Management Dashboard** (`/staff/api`) — Three tabs: **API Keys** (stat cards, paginated table with prefix/scopes/dates/status, Revoke with confirm, Generate Key modal with scope checkboxes), **API Reference** (collapsible endpoint groups, method badges, scope requirements, query param tables, dark code blocks), **Try It Out** (live endpoint tester with API key input, JSON body editor, response viewer). SUPER_ADMIN sees all keys system-wide; other admins see only their own. Role-based scope presets auto-selected when opening Generate modal (e.g., TREASURER → `financial:read`, HR_STAFF → `staff:read/write`).
+
+  **Key format**: `sis_live_` + 32 random hex chars. Stored as SHA-256 hash — never recoverable after generation. Full key shown **once** on creation.
+
+- **Dev Testing System** — Developer-only tools for rapid multi-role testing.
+  - **Dev Testing Panel** (`/dev`) — Dark-themed page listing all 15 demo accounts grouped by role category. Each account has: colored avatar, label, email, **Login** button (instant `signIn()`), **Copy URL** button (copies auto-login URL to clipboard). Tip section explains Chrome Incognito / Profiles / different browsers for simultaneous multi-role testing.
+  - **Auto-login API** (`/api/dev/login?as=ROLE`) — GET route that creates a NextAuth JWT for the specified demo user and sets the session cookie, then redirects to the role's portal. Accepts role shorthand (`admin`, `student`, `teacher`, `hr`, `amo`, `registrar`, `treasurer`, `accounting`, `academic`, `dean`, `purchasing`) or full email. Optional `&redirect=/path` param. Uses `encode` from `next-auth/jwt` and `DEMO_USERS` from `src/lib/auth.ts` (now exported).
+  - **Login page one-click** — Demo account buttons now call `signIn()` directly (not just fill the form). `loginAsDemo(email)` auto-sets `agreed=true` and submits. Per-button spinner during login.
+  - **Multi-port scripts**: `npm run dev:2` (`-p 3001`), `npm run dev:3` (`-p 3002`) — in Chrome, `localhost:3000` and `localhost:3001` have independent cookie jars, enabling true simultaneous multi-session testing.
+  - `DEMO_USERS` is now **exported** from `src/lib/auth.ts` (used by the auto-login API route).
+
 **Not yet built**
 - `POST /api/schedules` — persist schedule to DB with conflict detection
 - `PATCH /api/enrollment/[id]/confirm` — Treasury → ENROLLED status flip
 - Persist CRM stage/lead overrides to DB (currently module-level only; resets on server restart)
 - Persist Help entry edits and uploaded GIF URLs to DB
 - Persist Document Generator custom templates and history to DB
+- Accounting: Chart of Accounts balance auto-update from journal entries (balances are static mock values)
+- Accounting: Financial period close workflow (types exist: `FinancialPeriod`, no UI yet)
 - LMS: file upload for assignments/PTs (submit modal accepts text only; UI shows placeholder note)
 - LMS: real-time auto-save to server (currently saves to local React state only)
 - LMS: quiz question MATCHING type full UI (type exists in data model, not in question builder yet)
@@ -567,6 +651,7 @@ If the UI renders as unstyled HTML (no CSS), a stale production `.next` build is
 - LMS: `security.fullscreenMode` and `security.browserLock` are UI toggles only — client-side enforcement not implemented (requires Fullscreen API integration)
 - LMS: `security.ipTracking` is a stored flag only — no actual IP logging without server-side middleware
 - LMS: `conditionalRelease` stored in type but no evaluation logic implemented
+- API v1: persist API keys to DB (currently `MOCK_API_KEYS` resets on server restart)
 
 ## Switching to PostgreSQL
 

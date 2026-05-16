@@ -6,13 +6,14 @@ import { Header } from '@/components/layout/Header'
 import { SyncProvider } from '@/components/shared/SyncProvider'
 import { ConfirmProvider } from '@/components/shared/ConfirmDialog'
 import { AIAssistant } from '@/components/shared/AIAssistant'
+import { AgentChatWidget } from '@/components/shared/AgentChatWidget'
 
 const STAFF_ROLES = ['SUPER_ADMIN', 'ADMISSION_OFFICER', 'REGISTRAR', 'TREASURER', 'ACADEMIC_ADMIN', 'ACCOUNTING', 'DEAN', 'HR_STAFF', 'AMO', 'PURCHASING_OFFICER']
 
 export default async function StaffLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/login')
-  const user = session.user as { role?: string; name?: string }
+  const user = session.user as { role?: string; name?: string; id?: string }
   if (!STAFF_ROLES.includes(user.role ?? '')) redirect('/login')
 
   return (
@@ -26,6 +27,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
         </div>
       </div>
       <AIAssistant userRole={user.role ?? 'SUPER_ADMIN'} userName={user.name ?? 'Staff'} portal="staff" />
+      <AgentChatWidget userId={user.id ?? 'u_superadmin'} userName={user.name ?? 'Staff'} userRole={user.role ?? 'SUPER_ADMIN'} portal="staff" />
     </ConfirmProvider>
   )
 }

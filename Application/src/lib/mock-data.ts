@@ -13,6 +13,9 @@ import type {
   UniversalRequest,
   SupportTicket, KBArticle, TicketPriority,
   InstitutionalForm, FormSubmission, FormSettings,
+  ChartOfAccount, JournalEntry, JournalLine, JournalEntryStatus, FinancialApproval, FinApprovalStep, PayrollRun, PayrollItem, FinancialPeriod,
+  AgentInfo, AgentChat,
+  FeeStructure,
 } from '@/types'
 
 export const MOCK_SCHOOL: School = {
@@ -259,7 +262,21 @@ export const MOCK_ASSIGNMENTS: Assignment[] = []
 
 export const MOCK_QUIZZES: Quiz[] = []
 
-export const MOCK_GRADES: Grade[] = []
+export const MOCK_GRADES: Grade[] = [
+  // Demo student (Ethan Dela Cruz) — CS101 (enr_d1), PUBLISHED grade
+  {
+    id: 'grade_d1', enrollmentId: 'enr_d1',
+    quizAverage: 85, assignmentAverage: 88, midtermGrade: 82, finalExamGrade: 87,
+    finalGrade: 85.7, letterGrade: '1.50', status: 'PASSED',
+    gradedBy: 'Prof. Roberto Santos', gradedAt: '2025-11-15T10:00:00Z',
+    createdAt: '2025-08-12T00:00:00Z',
+  },
+  // Other CS101 students (enr_01–enr_04)
+  { id: 'grade_01', enrollmentId: 'enr_01', quizAverage: 78, assignmentAverage: 82, midtermGrade: 75, finalExamGrade: 80, finalGrade: 78.9, letterGrade: '2.00', status: 'PASSED', createdAt: '2025-08-12T00:00:00Z' },
+  { id: 'grade_02', enrollmentId: 'enr_02', quizAverage: 92, assignmentAverage: 90, midtermGrade: 88, finalExamGrade: 91, finalGrade: 90.5, letterGrade: '1.00', status: 'PASSED', createdAt: '2025-08-12T00:00:00Z' },
+  { id: 'grade_03', enrollmentId: 'enr_03', quizAverage: 65, assignmentAverage: 70, midtermGrade: 68, finalExamGrade: 72, finalGrade: 68.6, letterGrade: '3.00', status: 'PASSED', createdAt: '2025-08-12T00:00:00Z' },
+  { id: 'grade_04', enrollmentId: 'enr_04', quizAverage: 55, assignmentAverage: 60, midtermGrade: 58, finalExamGrade: 62, finalGrade: 58.6, letterGrade: '5.00', status: 'FAILED', createdAt: '2025-08-12T00:00:00Z' },
+]
 
 // Default grade criteria per offering — teacher can customize weights
 export const MOCK_GRADE_CRITERIA: import('@/types').GradeCriteria[] = []
@@ -304,7 +321,24 @@ export const MOCK_PIPELINE_STATS: PipelineStats = {
 // ─── Grade Finalization ───────────────────────────────────────────────────────
 // Submissions created by faculty; approved by Registrar.
 // Grades are pushed to MOCK_GRADES only on approval.
-export const MOCK_GRADE_SUBMISSIONS: GradeSubmission[] = []
+export const MOCK_GRADE_SUBMISSIONS: GradeSubmission[] = [
+  {
+    id: 'gsub_1', offeringId: 'off_1', semesterId: 'sem_1',
+    facultyId: 'f_1', facultyName: 'Prof. Roberto Santos',
+    subjectCode: 'CS101', subjectName: 'Introduction to Programming', section: 'BSCS-1A',
+    status: 'PUBLISHED',
+    entries: [
+      { enrollmentId: 'enr_d1', studentId: 'st_demo', studentName: 'Ethan Dela Cruz', studentNo: '2025-00000', quizAverage: 85, assignmentAverage: 88, midtermGrade: 82, finalExamGrade: 87, finalGrade: 85.7, letterGrade: '1.50', gradeStatus: 'PASSED' },
+      { enrollmentId: 'enr_01', studentId: 'st_001', studentName: 'Angela Reyes',      studentNo: '2025-00001', quizAverage: 78, assignmentAverage: 82, midtermGrade: 75, finalExamGrade: 80, finalGrade: 78.9, letterGrade: '2.00', gradeStatus: 'PASSED' },
+      { enrollmentId: 'enr_02', studentId: 'st_002', studentName: 'Marco Santos',      studentNo: '2025-00002', quizAverage: 92, assignmentAverage: 90, midtermGrade: 88, finalExamGrade: 91, finalGrade: 90.5, letterGrade: '1.00', gradeStatus: 'PASSED' },
+      { enrollmentId: 'enr_03', studentId: 'st_003', studentName: 'Bianca Garcia',     studentNo: '2025-00003', quizAverage: 65, assignmentAverage: 70, midtermGrade: 68, finalExamGrade: 72, finalGrade: 68.6, letterGrade: '3.00', gradeStatus: 'PASSED' },
+      { enrollmentId: 'enr_04', studentId: 'st_004', studentName: 'Joshua Cruz',       studentNo: '2025-00004', quizAverage: 55, assignmentAverage: 60, midtermGrade: 58, finalExamGrade: 62, finalGrade: 58.6, letterGrade: '5.00', gradeStatus: 'FAILED' },
+    ],
+    submittedAt: '2025-11-14T09:00:00Z',
+    closedAt:    '2025-11-14T14:00:00Z', closedBy: 'Rosa Registrar',
+    publishedAt: '2025-11-15T10:00:00Z', publishedBy: 'Rosa Registrar',
+  },
+]
 // offeringIds whose grades have been submitted (locked from editing)
 export const LOCKED_OFFERINGS = new Set<string>()
 
@@ -1780,3 +1814,282 @@ let _formSeq = 6
 export function nextFormId(): string { return `form_${_formSeq++}` }
 let _fsubSeq = 4
 export function nextFsubId(): string { return `fsub_${_fsubSeq++}` }
+
+// ─── Chart of Accounts ────────────────────────────────────────────────────────
+export const MOCK_CHART_OF_ACCOUNTS: ChartOfAccount[] = [
+  // ASSETS
+  { id:'coa_1000', code:'1000', name:'Current Assets',        type:'ASSET',     isActive:true, balance:0,          description:'Current asset accounts', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  { id:'coa_1001', code:'1001', name:'Cash on Hand',          type:'ASSET', parentCode:'1000', isActive:true, balance:485000,     description:'Physical cash in custody', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  { id:'coa_1002', code:'1002', name:'Cash in Bank',          type:'ASSET', parentCode:'1000', isActive:true, balance:2150000,    description:'Bank deposit accounts', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  { id:'coa_1003', code:'1003', name:'Tuition Receivable',    type:'ASSET', parentCode:'1000', isActive:true, balance:320000,     description:'Outstanding tuition fees', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  { id:'coa_1004', code:'1004', name:'Other Receivables',     type:'ASSET', parentCode:'1000', isActive:true, balance:45000,      description:'Miscellaneous receivables', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  { id:'coa_1500', code:'1500', name:'Non-Current Assets',    type:'ASSET',     isActive:true, balance:0,          description:'Long-term assets', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  { id:'coa_1501', code:'1501', name:'Property & Equipment',  type:'ASSET', parentCode:'1500', isActive:true, balance:8500000,    description:'Buildings, land, equipment', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  { id:'coa_1502', code:'1502', name:'Accumulated Depreciation', type:'ASSET', parentCode:'1500', isActive:true, balance:-1200000, description:'Contra-asset for depreciation', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  // LIABILITIES
+  { id:'coa_2000', code:'2000', name:'Current Liabilities',   type:'LIABILITY', isActive:true, balance:0,          description:'Short-term obligations', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  { id:'coa_2001', code:'2001', name:'Accounts Payable',      type:'LIABILITY', parentCode:'2000', isActive:true, balance:125000,  description:'Amounts owed to suppliers', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  { id:'coa_2002', code:'2002', name:'Accrued Expenses',      type:'LIABILITY', parentCode:'2000', isActive:true, balance:68000,   description:'Incurred but unpaid expenses', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  { id:'coa_2003', code:'2003', name:'Deferred Revenue',      type:'LIABILITY', parentCode:'2000', isActive:true, balance:95000,   description:'Advance payments received', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  // EQUITY
+  { id:'coa_3000', code:'3000', name:'Institutional Fund',    type:'EQUITY',    isActive:true, balance:9450000,    description:'Net institutional assets', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  { id:'coa_3001', code:'3001', name:'Retained Surplus',      type:'EQUITY', parentCode:'3000', isActive:true, balance:1220000,   description:'Accumulated surplus from operations', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  // REVENUE
+  { id:'coa_4000', code:'4000', name:'Revenue',               type:'REVENUE',   isActive:true, balance:0,          description:'All revenue accounts', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  { id:'coa_4001', code:'4001', name:'Tuition Fees',          type:'REVENUE', parentCode:'4000', isActive:true, balance:3850000,  description:'Regular tuition collections', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  { id:'coa_4002', code:'4002', name:'Miscellaneous Fees',    type:'REVENUE', parentCode:'4000', isActive:true, balance:285000,   description:'Lab, ID, misc fees', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  { id:'coa_4003', code:'4003', name:'Examination Fees',      type:'REVENUE', parentCode:'4000', isActive:true, balance:112000,   description:'Exam and certification fees', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  { id:'coa_4004', code:'4004', name:'Other Income',          type:'REVENUE', parentCode:'4000', isActive:true, balance:48000,    description:'Canteen, rentals, other', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  // EXPENSES
+  { id:'coa_5000', code:'5000', name:'Operating Expenses',    type:'EXPENSE',   isActive:true, balance:0,          description:'All operating expense accounts', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  { id:'coa_5001', code:'5001', name:'Salaries & Wages',      type:'EXPENSE', parentCode:'5000', isActive:true, balance:1850000,  description:'Employee compensation', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  { id:'coa_5002', code:'5002', name:'Procurement Expenses',  type:'EXPENSE', parentCode:'5000', isActive:true, balance:425000,   description:'Goods and materials purchased', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  { id:'coa_5003', code:'5003', name:'Utilities',             type:'EXPENSE', parentCode:'5000', isActive:true, balance:185000,   description:'Electricity, water, internet', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  { id:'coa_5004', code:'5004', name:'Maintenance & Repairs', type:'EXPENSE', parentCode:'5000', isActive:true, balance:96000,    description:'Building and equipment maintenance', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  { id:'coa_5005', code:'5005', name:'Supplies & Materials',  type:'EXPENSE', parentCode:'5000', isActive:true, balance:78000,    description:'Office and classroom supplies', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  { id:'coa_5006', code:'5006', name:'Capital Expenditures',  type:'EXPENSE', parentCode:'5000', isActive:true, balance:320000,   description:'Asset and equipment purchases', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  { id:'coa_5007', code:'5007', name:'Professional Fees',     type:'EXPENSE', parentCode:'5000', isActive:true, balance:45000,    description:'Consultancy, legal, audit fees', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+  { id:'coa_5008', code:'5008', name:'Other Expenses',        type:'EXPENSE', parentCode:'5000', isActive:true, balance:32000,    description:'Miscellaneous operating expenses', schoolId:'school_1', createdAt:'2025-01-01T00:00:00Z' },
+]
+
+// ─── Journal Entries ──────────────────────────────────────────────────────────
+export const MOCK_JOURNAL_ENTRIES: JournalEntry[] = [
+  {
+    id:'je_001', entryNumber:'JE-2025-0001', date:'2025-04-01',
+    description:'Tuition fee collection — April batch',
+    reference:'OR-2025-00112', sourceModule:'TREASURY', sourceDept:'Treasury',
+    lines:[
+      { id:'jl_001a', accountId:'coa_1002', accountCode:'1002', accountName:'Cash in Bank',    debit:185000, credit:0, description:'Deposit per OR-00112' },
+      { id:'jl_001b', accountId:'coa_4001', accountCode:'4001', accountName:'Tuition Fees',    debit:0, credit:185000, description:'Tuition revenue recognized' },
+    ],
+    totalDebit:185000, totalCredit:185000, status:'POSTED',
+    postedBy:'Clara Accounting', postedAt:'2025-04-01T09:00:00Z',
+    schoolId:'school_1', createdBy:'u_accounting', createdAt:'2025-04-01T08:45:00Z',
+  },
+  {
+    id:'je_002', entryNumber:'JE-2025-0002', date:'2025-04-03',
+    description:'Procurement expense — Office supplies PR-2025-0001',
+    reference:'PO-2025-001', sourceModule:'PURCHASING', sourceDept:'Purchasing',
+    lines:[
+      { id:'jl_002a', accountId:'coa_5005', accountCode:'5005', accountName:'Supplies & Materials', debit:12500, credit:0 },
+      { id:'jl_002b', accountId:'coa_2001', accountCode:'2001', accountName:'Accounts Payable',      debit:0, credit:12500 },
+    ],
+    totalDebit:12500, totalCredit:12500, status:'POSTED',
+    postedBy:'Clara Accounting', postedAt:'2025-04-03T10:30:00Z',
+    schoolId:'school_1', createdBy:'u_accounting', createdAt:'2025-04-03T10:00:00Z',
+  },
+  {
+    id:'je_003', entryNumber:'JE-2025-0003', date:'2025-04-05',
+    description:'Monthly utilities expense — electricity & water',
+    sourceModule:'MANUAL', sourceDept:'Administration',
+    lines:[
+      { id:'jl_003a', accountId:'coa_5003', accountCode:'5003', accountName:'Utilities',       debit:28500, credit:0 },
+      { id:'jl_003b', accountId:'coa_1001', accountCode:'1001', accountName:'Cash on Hand',    debit:0, credit:28500 },
+    ],
+    totalDebit:28500, totalCredit:28500, status:'POSTED',
+    postedBy:'Clara Accounting', postedAt:'2025-04-05T14:00:00Z',
+    schoolId:'school_1', createdBy:'u_accounting', createdAt:'2025-04-05T13:30:00Z',
+  },
+  {
+    id:'je_004', entryNumber:'JE-2025-0004', date:'2025-04-10',
+    description:'April payroll — teaching faculty',
+    sourceModule:'PAYROLL', sourceDept:'Human Resources',
+    lines:[
+      { id:'jl_004a', accountId:'coa_5001', accountCode:'5001', accountName:'Salaries & Wages', debit:485000, credit:0 },
+      { id:'jl_004b', accountId:'coa_1002', accountCode:'1002', accountName:'Cash in Bank',     debit:0, credit:432000, description:'Net pay disbursed' },
+      { id:'jl_004c', accountId:'coa_2002', accountCode:'2002', accountName:'Accrued Expenses', debit:0, credit:53000, description:'Withheld taxes & deductions' },
+    ],
+    totalDebit:485000, totalCredit:485000, status:'POSTED',
+    postedBy:'Clara Accounting', postedAt:'2025-04-10T16:00:00Z',
+    schoolId:'school_1', createdBy:'u_accounting', createdAt:'2025-04-10T15:00:00Z',
+  },
+  {
+    id:'je_005', entryNumber:'JE-2025-0005', date:'2025-04-15',
+    description:'Miscellaneous fees collection',
+    reference:'OR-2025-00118', sourceModule:'TREASURY', sourceDept:'Treasury',
+    lines:[
+      { id:'jl_005a', accountId:'coa_1002', accountCode:'1002', accountName:'Cash in Bank',       debit:45000, credit:0 },
+      { id:'jl_005b', accountId:'coa_4002', accountCode:'4002', accountName:'Miscellaneous Fees', debit:0, credit:45000 },
+    ],
+    totalDebit:45000, totalCredit:45000, status:'POSTED',
+    postedBy:'Clara Accounting', postedAt:'2025-04-15T11:00:00Z',
+    schoolId:'school_1', createdBy:'u_accounting', createdAt:'2025-04-15T10:30:00Z',
+  },
+  {
+    id:'je_006', entryNumber:'JE-2025-0006', date:'2025-04-20',
+    description:'Lab equipment purchase — College of Computing',
+    reference:'PO-2025-002', sourceModule:'AMS', sourceDept:'Asset Management',
+    lines:[
+      { id:'jl_006a', accountId:'coa_5006', accountCode:'5006', accountName:'Capital Expenditures', debit:95000, credit:0 },
+      { id:'jl_006b', accountId:'coa_1501', accountCode:'1501', accountName:'Property & Equipment', debit:0, credit:0, description:'See note' },
+      { id:'jl_006c', accountId:'coa_2001', accountCode:'2001', accountName:'Accounts Payable',     debit:0, credit:95000 },
+    ],
+    totalDebit:95000, totalCredit:95000, status:'DRAFT',
+    schoolId:'school_1', createdBy:'u_accounting', createdAt:'2025-04-20T09:00:00Z',
+  },
+  {
+    id:'je_007', entryNumber:'JE-2025-0007', date:'2025-04-22',
+    description:'Building maintenance — roof repair',
+    sourceModule:'MANUAL', sourceDept:'Administration',
+    lines:[
+      { id:'jl_007a', accountId:'coa_5004', accountCode:'5004', accountName:'Maintenance & Repairs', debit:32000, credit:0 },
+      { id:'jl_007b', accountId:'coa_1002', accountCode:'1002', accountName:'Cash in Bank',          debit:0, credit:32000 },
+    ],
+    totalDebit:32000, totalCredit:32000, status:'POSTED',
+    postedBy:'Clara Accounting', postedAt:'2025-04-22T14:00:00Z',
+    schoolId:'school_1', createdBy:'u_accounting', createdAt:'2025-04-22T13:00:00Z',
+  },
+]
+
+// ─── Financial Approvals ──────────────────────────────────────────────────────
+export const MOCK_FIN_APPROVALS: FinancialApproval[] = [
+  {
+    id:'fa_001', approvalNumber:'FA-2025-0001',
+    type:'EXPENSE', title:'IT Equipment Purchase — 10 Laptops',
+    amount:185000, department:'College of Computing',
+    requestedBy:'u_amo', requestedByName:'Marco Dela Cruz',
+    requestedAt:'2025-04-18T09:00:00Z',
+    steps:[
+      { id:'fas_001a', level:1, approverRole:'ACCOUNTING', status:'PENDING' },
+      { id:'fas_001b', level:2, approverRole:'SUPER_ADMIN', status:'PENDING' },
+    ],
+    currentStep:1, status:'PENDING',
+    schoolId:'school_1', createdAt:'2025-04-18T09:00:00Z', updatedAt:'2025-04-18T09:00:00Z',
+  },
+  {
+    id:'fa_002', approvalNumber:'FA-2025-0002',
+    type:'BUDGET_ADJUSTMENT', title:'Q2 Budget Increase — HR Department',
+    amount:50000, department:'Human Resources',
+    requestedBy:'u_hr', requestedByName:'Hannah Rodriguez',
+    requestedAt:'2025-04-15T10:30:00Z',
+    steps:[
+      { id:'fas_002a', level:1, approverRole:'ACCOUNTING', approverName:'Clara Accounting', status:'APPROVED', comment:'Justified by additional headcount.', actionAt:'2025-04-15T14:00:00Z' },
+      { id:'fas_002b', level:2, approverRole:'SUPER_ADMIN', status:'PENDING' },
+    ],
+    currentStep:2, status:'PENDING',
+    schoolId:'school_1', createdAt:'2025-04-15T10:30:00Z', updatedAt:'2025-04-15T14:00:00Z',
+  },
+  {
+    id:'fa_003', approvalNumber:'FA-2025-0003',
+    type:'EXPENSE', title:'Annual Software Licenses — Microsoft 365',
+    amount:62000, department:'Administration',
+    requestedBy:'u_superadmin', requestedByName:'Alex Administrator',
+    requestedAt:'2025-04-10T08:00:00Z',
+    steps:[
+      { id:'fas_003a', level:1, approverRole:'ACCOUNTING', approverName:'Clara Accounting', status:'APPROVED', comment:'Budget available.', actionAt:'2025-04-10T10:00:00Z' },
+      { id:'fas_003b', level:2, approverRole:'SUPER_ADMIN', approverName:'Alex Administrator', status:'APPROVED', actionAt:'2025-04-11T09:00:00Z' },
+    ],
+    currentStep:2, status:'APPROVED',
+    schoolId:'school_1', createdAt:'2025-04-10T08:00:00Z', updatedAt:'2025-04-11T09:00:00Z',
+  },
+]
+
+// ─── Payroll Runs ─────────────────────────────────────────────────────────────
+export const MOCK_PAYROLL_RUNS: PayrollRun[] = [
+  {
+    id:'pr_run_001', runNumber:'PRRUN-2025-04', period:'April 2025',
+    periodStart:'2025-04-01', periodEnd:'2025-04-30',
+    items:[
+      { id:'pri_001', employeeId:'u_teacher',   employeeName:'Prof. Roberto Santos', department:'College of Computing', position:'Associate Professor', basicPay:45000, allowances:5000, deductions:8500, netPay:41500, taxWithheld:2500 },
+      { id:'pri_002', employeeId:'u_hr',         employeeName:'Hannah Rodriguez',     department:'Human Resources',      position:'HR Officer',          basicPay:38000, allowances:3000, deductions:7200, netPay:33800, taxWithheld:2000 },
+      { id:'pri_003', employeeId:'u_amo',        employeeName:'Marco Dela Cruz',      department:'Asset Management',     position:'AMO Officer',         basicPay:36000, allowances:2500, deductions:6800, netPay:31700, taxWithheld:1800 },
+      { id:'pri_004', employeeId:'u_registrar',  employeeName:'Rosa Registrar',       department:'Registrar',            position:'Registrar',           basicPay:42000, allowances:4000, deductions:8000, netPay:38000, taxWithheld:2200 },
+      { id:'pri_005', employeeId:'u_accounting', employeeName:'Clara Accounting',     department:'Finance',              position:'Accounting Officer',  basicPay:40000, allowances:3500, deductions:7600, netPay:35900, taxWithheld:2100 },
+    ],
+    totalGross:206500, totalDeductions:38100, totalNet:180900,
+    status:'PAID', processedBy:'Clara Accounting', processedAt:'2025-04-10T15:00:00Z',
+    approvedBy:'Alex Administrator', paidAt:'2025-04-10T16:00:00Z', journalEntryId:'je_004',
+    schoolId:'school_1', createdAt:'2025-04-08T09:00:00Z',
+  },
+  {
+    id:'pr_run_002', runNumber:'PRRUN-2025-05', period:'May 2025',
+    periodStart:'2025-05-01', periodEnd:'2025-05-31',
+    items:[
+      { id:'pri_006', employeeId:'u_teacher',   employeeName:'Prof. Roberto Santos', department:'College of Computing', position:'Associate Professor', basicPay:45000, allowances:5000, deductions:8500, netPay:41500, taxWithheld:2500 },
+      { id:'pri_007', employeeId:'u_hr',         employeeName:'Hannah Rodriguez',     department:'Human Resources',      position:'HR Officer',          basicPay:38000, allowances:3000, deductions:7200, netPay:33800, taxWithheld:2000 },
+      { id:'pri_008', employeeId:'u_amo',        employeeName:'Marco Dela Cruz',      department:'Asset Management',     position:'AMO Officer',         basicPay:36000, allowances:2500, deductions:6800, netPay:31700, taxWithheld:1800 },
+      { id:'pri_009', employeeId:'u_registrar',  employeeName:'Rosa Registrar',       department:'Registrar',            position:'Registrar',           basicPay:42000, allowances:4000, deductions:8000, netPay:38000, taxWithheld:2200 },
+      { id:'pri_010', employeeId:'u_accounting', employeeName:'Clara Accounting',     department:'Finance',              position:'Accounting Officer',  basicPay:40000, allowances:3500, deductions:7600, netPay:35900, taxWithheld:2100 },
+    ],
+    totalGross:206500, totalDeductions:38100, totalNet:180900,
+    status:'FOR_APPROVAL', processedBy:'Clara Accounting', processedAt:'2025-05-08T10:00:00Z',
+    schoolId:'school_1', createdAt:'2025-05-08T09:00:00Z',
+  },
+]
+
+let _jeSeq = 8
+export function nextJENumber(): string { return `JE-2025-${String(_jeSeq++).padStart(4,'0')}` }
+let _faSeq = 4
+export function nextFANumber(): string { return `FA-2025-${String(_faSeq++).padStart(4,'0')}` }
+let _prRunSeq = 3
+export function nextPRRunNumber(): string { return `PRRUN-${new Date().getFullYear()}-${String(_prRunSeq++).padStart(2,'0')}` }
+
+// ─── Agent Chat ───────────────────────────────────────────────────────────────
+export const MOCK_AGENTS: AgentInfo[] = [
+  { id:'u_superadmin', name:'Alex Administrator', role:'SUPER_ADMIN',         department:'Administration',    availability:'ONLINE',  activeChats:2 },
+  { id:'u_registrar',  name:'Rosa Registrar',     role:'REGISTRAR',           department:'Registrar',         availability:'ONLINE',  activeChats:1 },
+  { id:'u_accounting', name:'Clara Accounting',   role:'ACCOUNTING',          department:'Finance',           availability:'ONLINE',  activeChats:3 },
+  { id:'u_hr',         name:'Hannah Rodriguez',   role:'HR_STAFF',            department:'Human Resources',   availability:'AWAY',    activeChats:0 },
+  { id:'u_amo',        name:'Marco Dela Cruz',    role:'AMO',                 department:'Asset Management',  availability:'OFFLINE', activeChats:0 },
+  { id:'u_admissions', name:'Admin Admissions',   role:'ADMISSION_OFFICER',   department:'Admissions',        availability:'ONLINE',  activeChats:1 },
+]
+
+export const MOCK_AGENT_CHATS: AgentChat[] = [
+  {
+    id:'chat_001', chatNumber:'CHAT-001',
+    userId:'st_demo', userName:'Juan dela Cruz', userRole:'STUDENT', portal:'student',
+    department:'REGISTRAR', subject:'Question about my Transcript of Records',
+    status:'ASSIGNED', agentId:'u_registrar', agentName:'Rosa Registrar',
+    messages:[
+      { id:'cm_001a', chatId:'chat_001', senderType:'USER',   senderId:'st_demo',      senderName:'Juan dela Cruz',  content:'Hi, I need to request my TOR for a scholarship application. How long does it take?', timestamp:'2025-05-14T09:00:00Z', isRead:true },
+      { id:'cm_001b', chatId:'chat_001', senderType:'SYSTEM', senderId:'system',       senderName:'System',          content:'Chat assigned to Rosa Registrar (Registrar Office)', timestamp:'2025-05-14T09:01:00Z', isRead:true },
+      { id:'cm_001c', chatId:'chat_001', senderType:'AGENT',  senderId:'u_registrar',  senderName:'Rosa Registrar',  content:'Hello Juan! TOR requests are processed within 3–5 business days. Please bring your student ID and a completed request form to the Registrar\'s Office, or you can file a request via the Support Center.', timestamp:'2025-05-14T09:05:00Z', isRead:true },
+      { id:'cm_001d', chatId:'chat_001', senderType:'USER',   senderId:'st_demo',      senderName:'Juan dela Cruz',  content:'Thank you! Can I have it delivered by email instead?', timestamp:'2025-05-14T09:08:00Z', isRead:false },
+    ],
+    createdAt:'2025-05-14T09:00:00Z', updatedAt:'2025-05-14T09:08:00Z',
+  },
+  {
+    id:'chat_002', chatNumber:'CHAT-002',
+    userId:'u_teacher', userName:'Prof. Roberto Santos', userRole:'TEACHER', portal:'teacher',
+    department:'HR', subject:'Leave application inquiry',
+    status:'RESOLVED', agentId:'u_hr', agentName:'Hannah Rodriguez',
+    messages:[
+      { id:'cm_002a', chatId:'chat_002', senderType:'USER',   senderId:'u_teacher',  senderName:'Prof. Roberto Santos', content:'I filed a leave request last week but haven\'t received a response. Can you check the status?', timestamp:'2025-05-13T10:00:00Z', isRead:true },
+      { id:'cm_002b', chatId:'chat_002', senderType:'SYSTEM', senderId:'system',     senderName:'System',               content:'Chat assigned to Hannah Rodriguez (HR)', timestamp:'2025-05-13T10:02:00Z', isRead:true },
+      { id:'cm_002c', chatId:'chat_002', senderType:'AGENT',  senderId:'u_hr',       senderName:'Hannah Rodriguez',     content:'Hi Prof. Santos! I can see your request — it\'s currently under review. The department head needs to approve it first. I\'ll follow up and get back to you by EOD.', timestamp:'2025-05-13T10:15:00Z', isRead:true },
+      { id:'cm_002d', chatId:'chat_002', senderType:'AGENT',  senderId:'u_hr',       senderName:'Hannah Rodriguez',     content:'Good news! Your leave request has been approved. You\'ll receive an email confirmation shortly.', timestamp:'2025-05-13T14:30:00Z', isRead:true },
+      { id:'cm_002e', chatId:'chat_002', senderType:'USER',   senderId:'u_teacher',  senderName:'Prof. Roberto Santos', content:'Thank you so much, Hannah!', timestamp:'2025-05-13T14:45:00Z', isRead:true },
+    ],
+    createdAt:'2025-05-13T10:00:00Z', updatedAt:'2025-05-13T14:45:00Z',
+  },
+  {
+    id:'chat_003', chatNumber:'CHAT-003',
+    userId:'u_purchasing', userName:'Perry Purchasing', userRole:'PURCHASING_OFFICER', portal:'staff',
+    department:'FINANCE', subject:'Budget availability for Q2 IT equipment',
+    status:'OPEN',
+    messages:[
+      { id:'cm_003a', chatId:'chat_003', senderType:'USER',   senderId:'u_purchasing', senderName:'Perry Purchasing', content:'Hi, we have a pending purchase request for laptops worth ₱185,000. Can you confirm if the IT budget still has availability for Q2?', timestamp:'2025-05-15T08:30:00Z', isRead:false },
+      { id:'cm_003b', chatId:'chat_003', senderType:'SYSTEM', senderId:'system',       senderName:'System',           content:'Chat is open and waiting for an agent to respond.', timestamp:'2025-05-15T08:30:00Z', isRead:false },
+    ],
+    createdAt:'2025-05-15T08:30:00Z', updatedAt:'2025-05-15T08:30:00Z',
+  },
+]
+
+let _chatSeq = 4
+export function nextChatNumber(): string { return `CHAT-${String(_chatSeq++).padStart(3,'0')}` }
+
+// ─── Fee Structure (managed by Accounting, used by Treasury) ─────────────────
+export const MOCK_FEE_STRUCTURES: FeeStructure[] = [
+  { id:'fee_1', name:'Tuition Fee',          category:'TUITION', amount:1500,  applicability:'PER_UNIT',         isActive:true,  schoolId:'school_1', description:'Per unit rate for lecture and laboratory subjects', createdBy:'Clara Accounting', createdAt:'2025-01-10T08:00:00Z' },
+  { id:'fee_2', name:'Miscellaneous Fee',     category:'MISC',    amount:3500,  applicability:'ALL_STUDENTS',      isActive:true,  schoolId:'school_1', description:'Student services, facilities, and technology fee', createdBy:'Clara Accounting', createdAt:'2025-01-10T08:00:00Z' },
+  { id:'fee_3', name:'Laboratory Fee',        category:'LAB',     amount:2500,  applicability:'ALL_STUDENTS',      isActive:true,  schoolId:'school_1', description:'Laboratory equipment and consumables fee per semester', createdBy:'Clara Accounting', createdAt:'2025-01-10T08:00:00Z' },
+  { id:'fee_4', name:'Registration Fee',      category:'REG',     amount:1000,  applicability:'ALL_STUDENTS',      isActive:true,  schoolId:'school_1', description:'Enrollment and registration processing fee', createdBy:'Clara Accounting', createdAt:'2025-01-10T08:00:00Z' },
+  { id:'fee_5', name:'Student ID Fee',        category:'OTHER',   amount:500,   applicability:'NEW_STUDENTS_ONLY', isActive:true,  schoolId:'school_1', description:'ID card issuance for new and transferee students', createdBy:'Clara Accounting', createdAt:'2025-01-10T08:00:00Z' },
+  { id:'fee_6', name:'NSTP Fee',              category:'OTHER',   amount:750,   applicability:'NEW_STUDENTS_ONLY', isActive:true,  schoolId:'school_1', description:'National Service Training Program fee', createdBy:'Clara Accounting', createdAt:'2025-01-10T08:00:00Z' },
+  { id:'fee_7', name:'Athletic Fee',          category:'MISC',    amount:600,   applicability:'ALL_STUDENTS',      isActive:true,  schoolId:'school_1', description:'Sports and physical fitness facilities', createdBy:'Clara Accounting', createdAt:'2025-01-15T08:00:00Z' },
+  { id:'fee_8', name:'Library Fee',           category:'MISC',    amount:400,   applicability:'ALL_STUDENTS',      isActive:true,  schoolId:'school_1', description:'Library resources and digital access fee', createdBy:'Clara Accounting', createdAt:'2025-01-15T08:00:00Z' },
+  { id:'fee_9', name:'Graduation Fee',        category:'OTHER',   amount:3500,  applicability:'OPTIONAL',          isActive:false, schoolId:'school_1', description:'Graduation ceremony and diploma processing fee', createdBy:'Clara Accounting', createdAt:'2025-02-01T08:00:00Z' },
+]
+
+let _feeSeq = 10
+export function nextFeeId(): string { return `fee_${_feeSeq++}` }
