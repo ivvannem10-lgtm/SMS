@@ -69,19 +69,20 @@ export interface StaffMember {
 }
 
 export const MOCK_STAFF_MEMBERS: StaffMember[] = [
-  { id: 'tm_1', name: 'Alex Administrator',    role: 'Super Admin',         department: 'Administration',      email: 'admin@school.edu',          birthday: '1980-03-15' },
-  { id: 'tm_2', name: 'Ana Admissions',         role: 'Admission Officer',   department: 'Admissions Office',   email: 'admissions@school.edu',     birthday: '1990-07-22' },
-  { id: 'tm_3', name: 'Rosa Registrar',         role: 'Registrar',           department: 'Registrar Office',    email: 'registrar@school.edu',      birthday: '1985-11-04' },
-  { id: 'tm_4', name: 'Thomas Treasury',        role: 'Treasurer',           department: 'Finance Office',      email: 'treasury@school.edu',       birthday: '1988-05-30' },
-  { id: 'tm_5', name: 'Adam Academic',          role: 'Academic Admin',      department: 'Academic Affairs',    email: 'academic@school.edu',       birthday: '1983-09-18' },
-  { id: 'tm_6', name: 'Dr. Maria Santos',       role: 'Dean',                department: 'College of Computing', email: 'dean.computing@school.edu', birthday: '1975-02-10' },
-  { id: 'tm_7', name: 'Dr. Jose Reyes',         role: 'Dean',                department: 'College of Business',  email: 'dean.business@school.edu',  birthday: '1972-06-25' },
-  { id: 'tm_8', name: 'Dr. Ana Garcia',         role: 'Dean',                department: 'College of Nursing',   email: 'dean.nursing@school.edu',   birthday: '1978-12-03' },
-  { id: 'tm_9', name: 'Dr. Carlos Cruz',        role: 'Dean',                department: 'Arts & Sciences',      email: 'dean.arts@school.edu',      birthday: '1976-08-14' },
-  { id: 'tm_10', name: 'Prof. Roberto Santos', role: 'Teacher',             department: 'College of Computing', email: 'prof.santos@school.edu',    birthday: '1987-04-07', phone: '09171234567' },
-  { id: 'tm_11', name: 'Maria Reyes',          role: 'Teacher',             department: 'College of Computing', email: 'm.reyes@stdominic.edu.ph',  birthday: '1992-01-19' },
-  { id: 'tm_12', name: 'James Cruz',           role: 'Teacher',             department: 'Mathematics',          email: 'j.cruz@stdominic.edu.ph',   birthday: '1984-10-28' },
-  { id: 'tm_13', name: 'Anna Garcia',          role: 'Teacher',             department: 'College of Computing', email: 'a.garcia@stdominic.edu.ph', birthday: '1995-03-22' },
+  { id: 'tm_1',  name: 'Alex Administrator',  role: 'Super Admin',          department: 'Administration',       email: 'admin@school.edu',          birthday: '1980-03-15' },
+  { id: 'tm_2',  name: 'Ana Admissions',       role: 'Admission Officer',    department: 'Admissions Office',    email: 'admissions@school.edu',     birthday: '1990-07-22' },
+  { id: 'tm_3',  name: 'Rosa Registrar',       role: 'Registrar',            department: 'Registrar Office',     email: 'registrar@school.edu',      birthday: '1985-11-04' },
+  { id: 'tm_4',  name: 'Thomas Treasury',      role: 'Treasurer',            department: 'Finance Office',       email: 'treasury@school.edu',       birthday: '1988-05-30' },
+  { id: 'tm_5',  name: 'Clara Accounting',     role: 'Accounting',           department: 'Accounting Office',    email: 'accounting@school.edu',     birthday: '1986-08-14' },
+  { id: 'tm_6',  name: 'Peter Purchasing',     role: 'Purchasing Officer',   department: 'Procurement Office',   email: 'purchasing@school.edu',     birthday: '1989-04-03' },
+  { id: 'tm_7',  name: 'Adam Academic',        role: 'Academic Admin',       department: 'Academic Affairs',     email: 'academic@school.edu',       birthday: '1983-09-18' },
+  { id: 'tm_8',  name: 'Dr. Maria Santos',     role: 'Dean',                 department: 'College of Computing', email: 'dean.computing@school.edu', birthday: '1975-02-10' },
+  { id: 'tm_9',  name: 'Dr. Jose Reyes',       role: 'Dean',                 department: 'College of Business',  email: 'dean.business@school.edu',  birthday: '1972-06-25' },
+  { id: 'tm_10', name: 'Dr. Ana Garcia',       role: 'Dean',                 department: 'College of Nursing',   email: 'dean.nursing@school.edu',   birthday: '1978-12-03' },
+  { id: 'tm_11', name: 'Dr. Carlos Cruz',      role: 'Dean',                 department: 'Arts & Sciences',      email: 'dean.arts@school.edu',      birthday: '1976-08-14' },
+  { id: 'tm_12', name: 'Helen HR',             role: 'HR Staff',             department: 'Human Resources',      email: 'hr@school.edu',             birthday: '1991-11-22' },
+  { id: 'tm_13', name: 'Arnold AMO',           role: 'Asset Management',     department: 'Asset Management',     email: 'amo@school.edu',            birthday: '1984-06-09' },
+  { id: 'tm_14', name: 'Prof. Roberto Santos', role: 'Teacher',              department: 'College of Computing', email: 'prof.santos@school.edu',    birthday: '1987-04-07', phone: '09171234567' },
 ]
 
 // ─── Applicants ──────────────────────────────────────────────────────────────
@@ -297,11 +298,7 @@ export interface CrmFollowUp {
   done: boolean
 }
 
-const _today = new Date().toISOString().slice(0, 10)
-export const CRM_FOLLOWUPS: CrmFollowUp[] = [
-  { id: 'fu_1', leadId: 'lead_1', leadName: 'Maria Santos',   type: 'CALL',  dueDate: _today, note: 'Follow up on application status', done: false },
-  { id: 'fu_2', leadId: 'lead_2', leadName: 'Juan Dela Cruz', type: 'EMAIL', dueDate: _today, note: 'Send program brochure',            done: false },
-]
+export const CRM_FOLLOWUPS: CrmFollowUp[] = []
 
 // ─── Notifications ────────────────────────────────────────────────────────────
 

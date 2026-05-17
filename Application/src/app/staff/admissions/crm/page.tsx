@@ -43,19 +43,8 @@ type FollowUp = SharedFollowUp
 
 // ─── Module-level data (persists across navigations) ─────────────────────────
 
-const CRM_LEADS: CrmLead[] = [
-  { id: 'lead_1', firstName: 'Maria',  lastName: 'Santos',   email: 'maria.santos@gmail.com', phone: '09171234567', source: 'FACEBOOK',  interestedProgram: 'BS Computer Science',       assignedStaff: 'Ana Admissions', score: 'HOT',  stage: 'CONTACTED',    createdAt: '2025-07-15T00:00:00Z', updatedAt: '2025-07-15T00:00:00Z' },
-  { id: 'lead_2', firstName: 'Juan',   lastName: 'Dela Cruz', email: 'juan.dc@gmail.com',     phone: '09181234567', source: 'WEBSITE',   interestedProgram: 'BS Business Administration', assignedStaff: 'Ana Admissions', score: 'WARM', stage: 'INTERESTED',   createdAt: '2025-07-20T00:00:00Z', updatedAt: '2025-07-20T00:00:00Z' },
-  { id: 'lead_3', firstName: 'Anna',   lastName: 'Reyes',     email: 'anna.reyes@yahoo.com',                        source: 'WALK_IN',   interestedProgram: 'BS Nursing',                assignedStaff: 'Ana Admissions', score: 'COLD', stage: 'NEW_LEAD',     createdAt: '2025-07-25T00:00:00Z', updatedAt: '2025-07-25T00:00:00Z' },
-  { id: 'lead_4', firstName: 'Carlos', lastName: 'Garcia',    email: 'cgarcia@email.com',     phone: '09191234567', source: 'REFERRAL',  interestedProgram: 'BS Computer Science',       assignedStaff: 'Ana Admissions', score: 'HOT',  stage: 'FOR_INTERVIEW', createdAt: '2025-07-10T00:00:00Z', updatedAt: '2025-07-10T00:00:00Z' },
-  { id: 'lead_5', firstName: 'Rosa',   lastName: 'Cruz',      email: 'rosa.cruz@gmail.com',                         source: 'FACEBOOK',  interestedProgram: 'BS Business Administration', assignedStaff: 'Ana Admissions', score: 'WARM', stage: 'APPLICANT',    createdAt: '2025-07-05T00:00:00Z', updatedAt: '2025-07-05T00:00:00Z' },
-  { id: 'lead_6', firstName: 'Jose',   lastName: 'Rizal',     email: 'jrizal@email.com',      phone: '09201234567', source: 'WEBSITE',   interestedProgram: 'BS Nursing',                assignedStaff: 'Ana Admissions', score: 'HOT',  stage: 'ACCEPTED',     createdAt: '2025-06-28T00:00:00Z', updatedAt: '2025-06-28T00:00:00Z' },
-]
-const CRM_ACTIVITIES: LeadActivity[] = [
-  { id: 'act_1', leadId: 'lead_1', type: 'STAGE_CHANGE', text: 'Lead moved to Contacted',                                        by: 'Ana Admissions', at: '2025-07-16T09:00:00Z' },
-  { id: 'act_2', leadId: 'lead_1', type: 'CALL',         text: 'Called — interested in CS program, will apply next week',        by: 'Ana Admissions', at: '2025-07-16T10:30:00Z' },
-  { id: 'act_3', leadId: 'lead_4', type: 'STAGE_CHANGE', text: 'Advanced to For Interview / Exam',                               by: 'Ana Admissions', at: '2025-07-12T08:00:00Z' },
-]
+const CRM_LEADS: CrmLead[] = []
+const CRM_ACTIVITIES: LeadActivity[] = []
 // Re-export shared store so local mutations stay in sync
 const CRM_FOLLOWUPS = SHARED_FOLLOWUPS
 
