@@ -663,3 +663,34 @@ model AuditLog {
 
   createdAt DateTime @default(now())
 }
+
+// ─── Agent Chat ───────────────────────────────────────────────────────────────
+
+model AgentChat {
+  id         String             @id @default(cuid())
+  chatNumber String             @unique
+  userId     String
+  userName   String
+  userRole   String
+  portal     String             // staff | teacher | student
+  department String             // REGISTRAR | FINANCE | HR | etc.
+  subject    String
+  status     String             @default("OPEN") // OPEN | ASSIGNED | RESOLVED | CLOSED
+  agentId    String?
+  agentName  String?
+  messages   AgentChatMessage[]
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+}
+
+model AgentChatMessage {
+  id         String    @id @default(cuid())
+  chatId     String
+  chat       AgentChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  senderType String    // USER | AGENT | SYSTEM
+  senderId   String
+  senderName String
+  content    String
+  isRead     Boolean   @default(false)
+  timestamp  DateTime  @default(now())
+}

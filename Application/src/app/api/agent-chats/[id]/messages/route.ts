@@ -1,37 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { MOCK_AGENT_CHATS } from '@/lib/mock-data'
-import type { ChatMessage, ChatSenderType } from '@/types'
+import { db } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const chat = MOCK_AGENT_CHATS.find(c => c.id === params.id)
-  if (!chat) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-
   const body = await req.json() as {
-    senderType: ChatSenderType; senderId: string; senderName: string; content: string
+    senderType: string; senderId: string; senderName: string; content: string
     agentId?: string; agentName?: string
   }
 
-  const now = new Date().toISOString()
-  const msg: ChatMessage = {
-    id: `cm_${Date.now()}`, chatId: chat.id,
-    senderType: body.senderType,
-    senderId: body.senderId,
-    senderName: body.senderName,
-    content: body.content,
-    timestamp: now,
-    isRead: body.senderType === 'AGENT', // agent messages start as read; user messages start unread for staff
-  }
-  chat.messages.push(msg)
-  chat.updatedAt = now
-
   // auto-assign if staff replies to an OPEN chat
-  if (body.senderType === 'AGENT' && chat.status === 'OPEN') {
-    chat.status    = 'ASSIGNED'
-    chat.agentId   = body.agentId ?? body.senderId
-    chat.agentName = body.agentName ?? body.senderName
-  }
+  const isAgent = body.senderType === 'AGENT'
+  const chat = await db.agentChat.findUnique({ where: { id: params.id } })
+  if (!chat) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  return NextResponse.json({ ...chat, messages: [...chat.messages] }, { status: 201 })
+  const shouldAssign = isAgent && chat.status === 'OPEN'
+
+  const updated = await db.agentChat.update({
+    where: { id: params.id },
+    data: {
+      updatedAt: new Date(),
+      ...(shouldAssign && {
+        status:    'ASSIGNED',
+        agentId:   body.agentId   ?? body.senderId,
+        agentName: body.agentName ?? body.senderName,
+      }),
+      messages: {
+        create: [{
+          senderType: body.senderType,
+          senderId:   body.senderId,
+          senderName: body.senderName,
+          content:    body.content,
+          isRead:     isAgent, // agent messages start read; user messages unread for staff
+        }],
+      },
+    },
+    include: { messages: { orderBy: { timestamp: 'asc' } } },
+  })
+
+  return NextResponse.json(updated, { status: 201 })
 }

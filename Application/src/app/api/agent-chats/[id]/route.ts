@@ -1,37 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { MOCK_AGENT_CHATS } from '@/lib/mock-data'
-import type { ChatMessage } from '@/types'
+import { db } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
-  const chat = MOCK_AGENT_CHATS.find(c => c.id === params.id)
+  const chat = await db.agentChat.findUnique({
+    where: { id: params.id },
+    include: { messages: { orderBy: { timestamp: 'asc' } } },
+  })
   if (!chat) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  return NextResponse.json({ ...chat, messages: [...chat.messages] })
+  return NextResponse.json(chat)
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const chat = MOCK_AGENT_CHATS.find(c => c.id === params.id)
-  if (!chat) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-
   const body = await req.json() as {
     status?: string; agentId?: string; agentName?: string; systemMessage?: string
   }
 
-  if (body.status)    chat.status    = body.status as typeof chat.status
-  if (body.agentId)   chat.agentId   = body.agentId
-  if (body.agentName) chat.agentName = body.agentName
-  chat.updatedAt = new Date().toISOString()
+  const chat = await db.agentChat.update({
+    where: { id: params.id },
+    data: {
+      ...(body.status    && { status:    body.status }),
+      ...(body.agentId   && { agentId:   body.agentId }),
+      ...(body.agentName && { agentName: body.agentName }),
+      updatedAt: new Date(),
+      ...(body.systemMessage && {
+        messages: {
+          create: [{
+            senderType: 'SYSTEM',
+            senderId: 'system',
+            senderName: 'System',
+            content: body.systemMessage,
+            isRead: true,
+          }],
+        },
+      }),
+    },
+    include: { messages: { orderBy: { timestamp: 'asc' } } },
+  })
 
-  if (body.systemMessage) {
-    const sys: ChatMessage = {
-      id: `cm_${Date.now()}_sys`, chatId: chat.id, senderType: 'SYSTEM',
-      senderId: 'system', senderName: 'System',
-      content: body.systemMessage,
-      timestamp: chat.updatedAt, isRead: true,
-    }
-    chat.messages.push(sys)
-  }
-
-  return NextResponse.json({ ...chat, messages: [...chat.messages] })
+  return NextResponse.json(chat)
 }
