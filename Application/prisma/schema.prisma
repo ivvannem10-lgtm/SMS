@@ -392,17 +392,20 @@ model Enrollment {
 // ─── Treasury ─────────────────────────────────────────────────────────────────
 
 model FeeStructure {
-  id          String  @id @default(cuid())
-  name        String
-  type        String // PER_UNIT | FLAT | LAB
-  amount      Float
-  description String?
-  isActive    Boolean @default(true)
+  id            String  @id @default(cuid())
+  name          String
+  category      String  @default("OTHER") // TUITION | MISC | LAB | REG | OTHER
+  amount        Float
+  applicability String  @default("ALL_STUDENTS") // ALL_STUDENTS | PER_UNIT | NEW_STUDENTS_ONLY | OPTIONAL
+  description   String?
+  isActive      Boolean @default(true)
+  createdBy     String?
 
   school   School @relation(fields: [schoolId], references: [id])
   schoolId String
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model SOA {
@@ -662,6 +665,684 @@ model AuditLog {
   schoolId String
 
   createdAt DateTime @default(now())
+}
+
+// ─── HR ───────────────────────────────────────────────────────────────────────
+
+model HREmployee {
+  id           String  @id @default(cuid())
+  employeeNo   String
+  firstName    String
+  lastName     String
+  middleName   String?
+  email        String
+  phone        String?
+  photo        String?
+  department   String?
+  position     String?
+  employmentType String @default("FULL_TIME") // FULL_TIME | PART_TIME | CONTRACTUAL | CASUAL
+  workSetup    String  @default("ON_SITE")    // ON_SITE | REMOTE | HYBRID
+  status       String  @default("ACTIVE")     // ACTIVE | INACTIVE | TERMINATED | ON_LEAVE
+  salary       Float?
+  sssNo        String?
+  philhealthNo String?
+  pagibigNo    String?
+  tinNo        String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  hiredAt      DateTime?
+  schoolId     String
+
+  leaveRequests HRLeaveRequest[]
+  onboarding    HROnboarding[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([employeeNo, schoolId])
+}
+
+model JobPosting {
+  id              String   @id @default(cuid())
+  title           String
+  department      String?
+  description     String?
+  requirements    String?
+  employmentType  String   @default("FULL_TIME")
+  workSetup       String   @default("ON_SITE")
+  salaryMin       Float?
+  salaryMax       Float?
+  slots           Int      @default(1)
+  status          String   @default("DRAFT") // OPEN | DRAFT | CLOSED | FILLED
+  deadline        DateTime?
+  schoolId        String
+
+  applications JobApplication[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model JobApplication {
+  id          String  @id @default(cuid())
+  applicantName String
+  email       String
+  phone       String?
+  resumeUrl   String?
+  stage       String  @default("NEW") // NEW | SCREENING | SHORTLISTED | INTERVIEW_SCHEDULED | INTERVIEW_COMPLETED | FINAL_EVALUATION | HIRED | REJECTED
+  rating      Int?
+  notes       String?
+  salaryOffer Float?
+  rejectionReason String?
+  interviewDate DateTime?
+  interviewType String?
+  interviewLink String?
+
+  jobPosting   JobPosting @relation(fields: [jobPostingId], references: [id])
+  jobPostingId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model HRLeaveRequest {
+  id         String   @id @default(cuid())
+  leaveType  String   // VACATION | SICK | MATERNITY | PATERNITY | EMERGENCY | BEREAVEMENT | UNPAID
+  startDate  DateTime
+  endDate    DateTime
+  days       Int
+  reason     String?
+  status     String   @default("PENDING") // PENDING | APPROVED | REJECTED | CANCELLED
+  rejectionReason String?
+  approvedBy String?
+  schoolId   String
+
+  employee   HREmployee @relation(fields: [employeeId], references: [id])
+  employeeId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model HROnboarding {
+  id       String  @id @default(cuid())
+  status   String  @default("IN_PROGRESS") // IN_PROGRESS | COMPLETED | ON_HOLD
+  tasks    Json    @default("[]") // OnboardingTask[]
+  schoolId String
+
+  employee   HREmployee @relation(fields: [employeeId], references: [id])
+  employeeId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Asset Management ─────────────────────────────────────────────────────────
+
+model Asset {
+  id           String  @id @default(cuid())
+  assetTag     String
+  name         String
+  category     String  // COMPUTER | FURNITURE | VEHICLE | EQUIPMENT | etc.
+  brand        String?
+  model        String?
+  serialNumber String?
+  status       String  @default("AVAILABLE") // AVAILABLE | DEPLOYED | BORROWED | UNDER_MAINTENANCE | DISPOSED | LOST
+  condition    String  @default("GOOD")
+  department   String?
+  location     String?
+  custodianType String? // INDIVIDUAL | DEPARTMENT
+  custodianName String?
+  purchaseDate DateTime?
+  purchaseCost Float?
+  supplier     String?
+  warrantyExpiry DateTime?
+  photo        String?
+  inclusions   Json    @default("[]") // AssetInclusion[]
+  schoolId     String
+
+  deployments  AssetDeployment[]
+  history      AssetHistory[]
+  maintenance  MaintenanceLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([assetTag, schoolId])
+}
+
+model AssetDeployment {
+  id             String   @id @default(cuid())
+  borrowerName   String
+  borrowerEmail  String?
+  department     String?
+  purpose        String?
+  deploymentType String   @default("TEMPORARY") // TEMPORARY | LONG_TERM | PERMANENT
+  deployedAt     DateTime @default(now())
+  expectedReturn DateTime?
+  returnedAt     DateTime?
+  status         String   @default("ACTIVE") // ACTIVE | RETURNED | OVERDUE
+  notes          String?
+  missingItems   Json     @default("[]")
+  hasDamage      Boolean  @default(false)
+  damageNotes    String?
+  schoolId       String
+
+  asset   Asset  @relation(fields: [assetId], references: [id])
+  assetId String
+
+  createdAt DateTime @default(now())
+}
+
+model AssetHistory {
+  id           String   @id @default(cuid())
+  activityType String   // REGISTERED | DEPLOYED | RETURNED | STATUS_CHANGED | MAINTENANCE_STARTED | MAINTENANCE_COMPLETED | DISPOSED
+  description  String
+  performedBy  String?
+  schoolId     String
+
+  asset   Asset  @relation(fields: [assetId], references: [id])
+  assetId String
+
+  createdAt DateTime @default(now())
+}
+
+model Consumable {
+  id           String  @id @default(cuid())
+  name         String
+  category     String?
+  unit         String  @default("PCS")
+  quantity     Int     @default(0)
+  minThreshold Int     @default(10)
+  location     String?
+  supplier     String?
+  schoolId     String
+
+  transactions ConsumableTransaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ConsumableTransaction {
+  id          String  @id @default(cuid())
+  type        String  // ISSUED | RESTOCKED | ADJUSTED
+  quantity    Int
+  notes       String?
+  performedBy String?
+  schoolId    String
+
+  consumable   Consumable @relation(fields: [consumableId], references: [id])
+  consumableId String
+
+  createdAt DateTime @default(now())
+}
+
+model MaintenanceLog {
+  id             String   @id @default(cuid())
+  type           String   // PREVENTIVE | CORRECTIVE | EMERGENCY | INSPECTION
+  status         String   @default("SCHEDULED") // SCHEDULED | IN_PROGRESS | COMPLETED | CANCELLED
+  description    String?
+  technician     String?
+  cost           Float?
+  completionDate DateTime?
+  completionNotes String?
+  schoolId       String
+
+  asset   Asset  @relation(fields: [assetId], references: [id])
+  assetId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Purchasing ───────────────────────────────────────────────────────────────
+
+model Vendor {
+  id          String  @id @default(cuid())
+  name        String
+  category    String? // IT_SUPPLIES | OFFICE_SUPPLIES | FURNITURE | SERVICES | FOOD | CONSTRUCTION | OTHER
+  email       String?
+  phone       String?
+  address     String?
+  contactPerson String?
+  taxId       String?
+  status      String  @default("ACTIVE") // ACTIVE | INACTIVE | BLACKLISTED
+  schoolId    String
+
+  purchaseOrders PurchaseOrder[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PurchaseRequest {
+  id           String  @id @default(cuid())
+  prNumber     String  @unique
+  title        String
+  department   String
+  requestedBy  String
+  requestedByName String
+  priority     String  @default("MEDIUM") // LOW | MEDIUM | HIGH | URGENT
+  status       String  @default("DRAFT")  // DRAFT | SUBMITTED | UNDER_REVIEW | APPROVED | REJECTED | CANCELLED | PROCESSING | COMPLETED
+  items        Json    @default("[]")     // PRItem[]
+  approvals    Json    @default("[]")     // PRApproval[]
+  totalAmount  Float   @default(0)
+  notes        String?
+  schoolId     String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PurchaseOrder {
+  id          String   @id @default(cuid())
+  poNumber    String   @unique
+  prId        String?
+  title       String
+  department  String
+  status      String   @default("PENDING") // PENDING | APPROVED | DELIVERED | CANCELLED
+  items       Json     @default("[]")      // POItem[]
+  totalAmount Float    @default(0)
+  deliveryDate DateTime?
+  deliveredAt  DateTime?
+  notes       String?
+  schoolId    String
+
+  vendor   Vendor? @relation(fields: [vendorId], references: [id])
+  vendorId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BudgetReservation {
+  id          String   @id @default(cuid())
+  prId        String
+  prNumber    String
+  department  String
+  amount      Float
+  status      String   @default("ACTIVE") // ACTIVE | RELEASED | CONVERTED
+  releasedAt  DateTime?
+  releaseReason String?
+  schoolId    String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model OfficialReceipt {
+  id          String  @id @default(cuid())
+  orNumber    String  @unique
+  studentId   String
+  studentName String
+  studentNo   String
+  amount      Float
+  paymentType String?
+  semesterId  String?
+  soaId       String?
+  issuedBy    String?
+  isVoided    Boolean  @default(false)
+  voidReason  String?
+  voidedAt    DateTime?
+  schoolId    String
+
+  issuedAt DateTime @default(now())
+}
+
+model TreasuryLog {
+  id          String  @id @default(cuid())
+  type        String  // PAYMENT_RECEIVED | CHARGE_ADDED | CHARGE_VOIDED | REFUND_ISSUED
+  amount      Float
+  description String?
+  studentId   String?
+  studentName String?
+  studentNo   String?
+  soaId       String?
+  itemId      String?
+  cashier     String?
+  schoolId    String
+
+  createdAt DateTime @default(now())
+}
+
+// ─── Accounting ───────────────────────────────────────────────────────────────
+
+model Budget {
+  id         String  @id @default(cuid())
+  name       String
+  department String
+  amount     Float
+  periodType String  @default("MONTHLY") // MONTHLY | QUARTERLY | YEARLY
+  startDate  DateTime
+  endDate    DateTime
+  schoolId   String
+
+  expenses BudgetExpense[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BudgetExpense {
+  id          String  @id @default(cuid())
+  description String
+  amount      Float
+  date        DateTime
+  recordedBy  String?
+  department  String?
+  schoolId    String
+
+  budget   Budget @relation(fields: [budgetId], references: [id])
+  budgetId String
+
+  createdAt DateTime @default(now())
+}
+
+model CashflowEntry {
+  id          String   @id @default(cuid())
+  date        DateTime
+  type        String   // INFLOW | OUTFLOW
+  category    String?
+  description String
+  amount      Float
+  reference   String?
+  department  String?
+  recordedBy  String?
+  schoolId    String
+
+  createdAt DateTime @default(now())
+}
+
+model FinancialExpense {
+  id          String   @id @default(cuid())
+  date        DateTime
+  category    String   // UTILITIES | SALARIES | SUPPLIES | MAINTENANCE | OTHER
+  description String
+  amount      Float
+  department  String?
+  status      String   @default("PENDING") // PENDING | APPROVED | REJECTED | PAID
+  approvedBy  String?
+  approvedAt  DateTime?
+  schoolId    String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ChartOfAccount {
+  id          String  @id @default(cuid())
+  code        String
+  name        String
+  type        String  // ASSET | LIABILITY | EQUITY | REVENUE | EXPENSE
+  parentCode  String?
+  description String?
+  isActive    Boolean @default(true)
+  balance     Float   @default(0)
+  schoolId    String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([code, schoolId])
+}
+
+model JournalEntry {
+  id            String   @id @default(cuid())
+  entryNumber   String   @unique
+  date          DateTime
+  description   String
+  reference     String?
+  sourceModule  String   @default("MANUAL") // TREASURY | PURCHASING | AMS | HRIS | PAYROLL | MANUAL
+  sourceId      String?
+  sourceDept    String?
+  lines         Json     @default("[]") // JournalLine[]
+  totalDebit    Float    @default(0)
+  totalCredit   Float    @default(0)
+  status        String   @default("DRAFT") // DRAFT | POSTED | VOID
+  postedBy      String?
+  postedAt      DateTime?
+  voidReason    String?
+  schoolId      String
+  createdBy     String
+
+  createdAt DateTime @default(now())
+}
+
+model FinancialApproval {
+  id              String   @id @default(cuid())
+  approvalNumber  String   @unique
+  type            String   // EXPENSE | BUDGET_ADJUSTMENT | JOURNAL_ENTRY | PAYROLL
+  title           String
+  amount          Float
+  department      String?
+  requestedBy     String
+  requestedByName String
+  steps           Json     @default("[]") // FinApprovalStep[]
+  currentStep     Int      @default(1)
+  status          String   @default("PENDING") // PENDING | APPROVED | REJECTED | ESCALATED
+  schoolId        String
+
+  requestedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model PayrollRun {
+  id              String   @id @default(cuid())
+  runNumber       String   @unique
+  period          String
+  periodStart     DateTime
+  periodEnd       DateTime
+  items           Json     @default("[]") // PayrollItem[]
+  totalGross      Float    @default(0)
+  totalDeductions Float    @default(0)
+  totalNet        Float    @default(0)
+  status          String   @default("DRAFT") // DRAFT | FOR_APPROVAL | APPROVED | PROCESSED | PAID
+  processedBy     String?
+  processedAt     DateTime?
+  approvedBy      String?
+  paidAt          DateTime?
+  journalEntryId  String?
+  schoolId        String
+
+  createdAt DateTime @default(now())
+}
+
+// ─── Support & Requests ───────────────────────────────────────────────────────
+
+model SupportTicket {
+  id           String  @id @default(cuid())
+  ticketNumber String  @unique
+  subject      String
+  description  String
+  category     String  // IT_SUPPORT | GRADES_CONCERN | ENROLLMENT | PAYMENT | FACILITIES | HR | GENERAL
+  priority     String  @default("MEDIUM") // LOW | MEDIUM | HIGH | CRITICAL
+  status       String  @default("OPEN")   // OPEN | UNDER_REVIEW | IN_PROGRESS | WAITING_FOR_USER | ESCALATED | RESOLVED | CLOSED
+  department   String?
+  submittedBy  String
+  submittedByName String
+  submittedByRole String
+  portal       String  @default("staff")
+  agentId      String?
+  agentName    String?
+  agentDept    String?
+  replies      Json    @default("[]") // TicketReply[]
+  satisfaction Int?
+  satisfactionNote String?
+  resolvedAt   DateTime?
+  closedAt     DateTime?
+  slaDeadline  DateTime?
+  schoolId     String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model KBArticle {
+  id          String  @id @default(cuid())
+  title       String
+  slug        String
+  category    String
+  content     String
+  tags        Json    @default("[]")
+  views       Int     @default(0)
+  helpful     Int     @default(0)
+  notHelpful  Int     @default(0)
+  isPublished Boolean @default(true)
+  schoolId    String
+
+  publishedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model UniversalRequest {
+  id           String  @id @default(cuid())
+  requestNumber String @unique
+  title        String
+  category     String  // LEAVE | PURCHASE | ASSET | GENERAL
+  type         String
+  status       String  @default("DRAFT") // DRAFT | SUBMITTED | UNDER_REVIEW | APPROVED | REJECTED | PROCESSING | COMPLETED | CANCELLED
+  priority     String  @default("MEDIUM")
+  submittedBy  String
+  submittedByName String
+  submittedByRole String
+  portal       String
+  routedTo     String?
+  formData     Json    @default("{}")
+  activities   Json    @default("[]") // RequestActivity[]
+  notes        String?
+  schoolId     String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Forms ────────────────────────────────────────────────────────────────────
+
+model InstitutionalForm {
+  id           String  @id @default(cuid())
+  title        String
+  description  String?
+  category     String?
+  department   String?
+  visibility   String  @default("PUBLIC_INTERNAL") // PUBLIC_INTERNAL | STAFF_ONLY | STUDENT_ONLY | DEPARTMENT_ONLY
+  status       String  @default("DRAFT") // DRAFT | PUBLISHED | CLOSED | ARCHIVED
+  fields       Json    @default("[]")    // FormField[]
+  settings     Json    @default("{}")    // FormSettings
+  createdBy    String
+  createdByName String?
+  submissionCount Int  @default(0)
+  publishedAt  DateTime?
+  closedAt     DateTime?
+  schoolId     String
+
+  submissions FormSubmission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FormSubmission {
+  id             String  @id @default(cuid())
+  formId         String
+  formTitle      String
+  submittedBy    String
+  submittedByName String
+  submittedByRole String
+  responses      Json    @default("{}") // Record<string, any>
+  status         String  @default("SUBMITTED") // SUBMITTED | UNDER_REVIEW | APPROVED | REJECTED
+  notes          String?
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  schoolId       String
+
+  form InstitutionalForm @relation(fields: [formId], references: [id])
+
+  submittedAt DateTime @default(now())
+}
+
+// ─── LMS Extensions ───────────────────────────────────────────────────────────
+
+model LMSAnnouncement {
+  id         String  @id @default(cuid())
+  offeringId String
+  title      String
+  content    String
+  isPinned   Boolean @default(false)
+  postedBy   String?
+  schoolId   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LMSAttendance {
+  id         String   @id @default(cuid())
+  offeringId String
+  studentId  String
+  date       DateTime
+  status     String   @default("PRESENT") // PRESENT | ABSENT | LATE | EXCUSED
+  notes      String?
+  schoolId   String
+
+  createdAt DateTime @default(now())
+
+  @@unique([offeringId, studentId, date])
+}
+
+model LMSDiscussion {
+  id         String  @id @default(cuid())
+  offeringId String
+  title      String
+  content    String
+  postedBy   String
+  postedByName String
+  replies    Json    @default("[]")
+  schoolId   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PerformanceTask {
+  id          String   @id @default(cuid())
+  offeringId  String
+  title       String
+  description String?
+  dueDate     DateTime?
+  totalPoints Int      @default(100)
+  isPublished Boolean  @default(false)
+  rubric      Json     @default("{}")  // Rubric with criteria and levels
+  submissions Json     @default("[]") // PTSubmission[]
+  schoolId    String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model GradeSubmission {
+  id          String  @id @default(cuid())
+  offeringId  String
+  semesterId  String
+  facultyId   String
+  facultyName String
+  subjectCode String
+  subjectName String
+  section     String?
+  status      String  @default("SUBMITTED") // SUBMITTED | CLOSED | RETURNED | PUBLISHED
+  entries     Json    @default("[]")         // GradeSubmissionEntry[]
+  returnReason String?
+  submittedAt DateTime @default(now())
+  closedAt    DateTime?
+  closedBy    String?
+  publishedAt DateTime?
+  publishedBy String?
+  returnedAt  DateTime?
+  returnedBy  String?
+  schoolId    String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ─── Agent Chat ───────────────────────────────────────────────────────────────

@@ -10,7 +10,9 @@ All application code lives in `Application/`. See [Application/CLAUDE.md](Applic
 
 ```bash
 cd Application
-cp .env.example .env.local   # set NEXTAUTH_SECRET
+# Copy .env.example to .env and fill in DATABASE_URL, DIRECT_URL, NEXTAUTH_SECRET,
+# NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, SUPABASE_SERVICE_ROLE_KEY
+cp .env.example .env
 npm install
 npm run db:push && npm run db:seed
 npm run dev                  # http://localhost:3000
@@ -18,4 +20,4 @@ npm run dev                  # http://localhost:3000
 
 ## Stack
 
-Next.js 14 App Router · TypeScript · Tailwind CSS · Prisma (SQLite) · NextAuth.js · Recharts · react-hook-form + Zod
+Next.js 14 App Router · TypeScript · Tailwind CSS · Prisma (PostgreSQL/Supabase) · NextAuth.js · Recharts · react-hook-form + Zod · @supabase/supabase-js

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-A SaaS **School Management System** built as a "train system" — each module is a station in the academic lifecycle. The platform is branded per-school (school name shown in all sidebars from session). Tech stack: **Next.js 14 App Router · TypeScript · Tailwind CSS · Prisma (SQLite) · NextAuth.js · Recharts · pdf-lib · pdfjs-dist**.
+A SaaS **School Management System** built as a "train system" — each module is a station in the academic lifecycle. The platform is branded per-school (school name shown in all sidebars from session). Tech stack: **Next.js 14 App Router · TypeScript · Tailwind CSS · Prisma (PostgreSQL/Supabase) · NextAuth.js · Recharts · pdf-lib · pdfjs-dist · @supabase/supabase-js**.
 
 ## Commands
 
@@ -16,10 +16,12 @@ npm run build           # Verify production build
 npm run lint            # ESLint — react/no-unescaped-entities is OFF (apostrophes/quotes in JSX don't need escaping)
 
 # Database
-npm run db:push         # Apply Prisma schema to SQLite (no migration file)
-npm run db:seed         # Seed demo data via prisma/seed.ts
-npm run db:studio       # Open Prisma GUI
-npm run db:reset        # prisma migrate reset --force + re-seed
+npm run db:push              # Apply Prisma schema to PostgreSQL without a migration file (dev shortcut)
+npm run db:migrate           # prisma migrate dev — creates a migration file and applies it
+npm run db:migrate:deploy    # prisma migrate deploy — apply migrations in CI/production
+npm run db:seed              # Seed demo data via prisma/seed.ts (dotenv loaded inside seed.ts — no extra flags needed)
+npm run db:studio            # Open Prisma GUI
+npm run db:reset             # prisma migrate reset --force + re-seed
 ```
 
 **Quick dev login** (no need to use the login form):
@@ -33,7 +35,7 @@ http://localhost:3000/api/dev/login?as=accounting # Auto-login as Accounting Off
 
 **First-time setup:**
 ```bash
-cp .env.example .env.local   # set NEXTAUTH_SECRET
+cp .env.example .env   # Fill in DATABASE_URL, DIRECT_URL, NEXTAUTH_SECRET, and Supabase keys
 npm install
 npm run db:push && npm run db:seed
 npm run dev
@@ -89,8 +91,21 @@ function PageInner() {
 ### Multi-tenancy
 Every Prisma model has a `schoolId` foreign key. All API routes must scope queries to `(session.user as SessionUser).schoolId`.
 
+### Database — Supabase / PostgreSQL
+The database is **Supabase-hosted PostgreSQL**. Prisma schema uses `provider = "postgresql"` with both a pooled `DATABASE_URL` and a direct `DIRECT_URL` (required for migrations). The `.env` file (not `.env.local`) is read by the Prisma CLI and by `prisma/seed.ts` (which loads it via `dotenv/config`). Required env vars:
+- `DATABASE_URL` — pooled connection string (PgBouncer)
+- `DIRECT_URL` — direct (non-pooled) connection string for migrations
+- `NEXTAUTH_SECRET`
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (formerly ANON_KEY — same key, renamed by Supabase)
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+`src/lib/supabase.ts` exports two clients:
+- `supabase` — public browser client (respects Row Level Security)
+- `supabaseAdmin()` — server-only admin client (bypasses RLS; use only in API routes / server components)
+
 ### Mock data vs. database
-`src/lib/mock-data.ts` is the live in-memory dataset. API routes read from it; commented Prisma calls show the eventual swap pattern. `src/lib/db.ts` exports the singleton `PrismaClient`.
+`src/lib/mock-data.ts` is the live in-memory dataset for most modules. API routes for real-time features (Agent Chat) use Prisma directly via `src/lib/db.ts` (singleton `PrismaClient`). Commented Prisma calls in mock-backed routes show the eventual swap pattern.
 
 **Current mock data state (reset for fresh testing):**
 - Students: 1 demo account only (`st_demo` → `student@school.edu`)
@@ -109,7 +124,7 @@ Every Prisma model has a `schoolId` foreign key. All API routes must scope queri
 - **Edit student records**: REGISTRAR + SUPER_ADMIN only (`canEdit` check)
 - **Registrar** sees all departments — no department filter on student data
 - **Dean** is scoped to their `deanDepartment` college; sidebar shows Dean-only nav (`DEAN_NAV`)
-- **Accounting** (`ACCOUNTING` role) portal: `/staff/accounting` — sees full Accounting nav (Dashboard, General Ledger, Journal Entries, Chart of Accounts, Cashflow, Expenses, Approvals, Payroll, Analytics, Reports). Does NOT see Cashier/Student Accounts/Transaction Logs (TREASURER only).
+- **Accounting** (`ACCOUNTING` role) portal: `/staff/accounting` — sees full Accounting nav (Dashboard, General Ledger, Journal Entries, Chart of Accounts, Cashflow, Expenses, Fee Management, Approvals, Payroll, Analytics, Reports). Does NOT see Cashier/Student Accounts/Transaction Logs (TREASURER only).
 - **API Management** (`/staff/api`) — visible to all 10 admin roles (not TEACHER/STUDENT). SUPER_ADMIN sees all API keys; other admins see only keys they created. Revoking is own-keys-only for non-SUPER_ADMIN.
 - **Treasurer** (`TREASURER` role) portal: `/staff/treasury` — sees Cashier, Student Accounts, Transaction Logs, Collections, Official Receipts. Does NOT see Accounting/Purchasing sections.
 - **Purchasing Officer** (`PURCHASING_OFFICER` role) portal: `/staff/purchasing` — sees only the Purchasing nav group (Dashboard, Purchase Requests, Purchase Orders, Vendors).
@@ -198,6 +213,7 @@ All three sidebars (Staff, Teacher, Student) use a local `signOutOpen` state to 
 | `src/lib/mock-api-keys.ts` | API key store — `MOCK_API_KEYS`, `ApiScope`, `API_ADMIN_ROLES`, `ROLE_DEFAULT_SCOPES` |
 | `src/lib/api-middleware.ts` | REST API request validation — `validateRequest(request, scope)`, response helpers `ok/err/created/options` |
 | `src/lib/db.ts` | Singleton `PrismaClient` |
+| `src/lib/supabase.ts` | Supabase client — `supabase` (public, browser-safe) + `supabaseAdmin()` (server-only, bypasses RLS) |
 | `tailwind.config.ts` | Color tokens (navy brand, sidebar, gold, surface), font, shadows |
 | `src/app/globals.css` | CSS custom property design tokens + font imports |
 | `src/components/layout/StaffSidebar.tsx` | Role-aware staff nav; Dean shows `DEAN_NAV` only |
@@ -247,7 +263,13 @@ All three sidebars (Staff, Teacher, Student) use a local `signOutOpen` state to 
 | `src/app/staff/hr/employees/[id]/page.tsx` | Employee detail — 4 tabs: Profile (editable), Documents, Leave History, Onboarding |
 | `src/app/staff/hr/onboarding/page.tsx` | Onboarding checklists — accordion per employee, click-to-complete tasks |
 | `src/app/staff/hr/leaves/page.tsx` | Leave requests — approve/reject review modal, File Leave Request modal |
-| `prisma/schema.prisma` | Full relational schema — 20+ models |
+| `src/components/shared/AgentChatWidget.tsx` | Floating teal "Talk to Agent" button rendered in all three portal layouts; polls `/api/agent-chats` every 2 s |
+| `src/app/staff/agent-inbox/page.tsx` | Staff-side Agent Inbox — view and respond to all open chats; polls every 2 s |
+| `src/app/staff/accounting/fees/page.tsx` | Fee Management — Accounting defines institutional fee structure synced to Treasury |
+| `src/app/api/agent-chats/route.ts` | `GET` list / `POST` create a chat (Prisma → Supabase) |
+| `src/app/api/agent-chats/[id]/route.ts` | `GET` single chat / `PATCH` update status or assign agent |
+| `src/app/api/agent-chats/[id]/messages/route.ts` | `GET` messages / `POST` new message for a chat |
+| `prisma/schema.prisma` | Full relational schema — 20+ models including `AgentChat` + `AgentChatMessage` |
 
 ## Registrar student detail — tab structure
 
@@ -378,6 +400,7 @@ If the UI renders as unstyled HTML (no CSS), a stale production `.next` build is
 
 | Scope | Mechanism | Resets on |
 |---|---|---|
+| Agent chats + messages | Supabase (PostgreSQL via Prisma) | Never — persisted in DB |
 | Apply form → Admissions | `sessionStorage['sis_pending_applicants']` | Browser close |
 | User profile / theme / notif prefs | `localStorage` | Never (until cleared) |
 | CRM leads, activities, follow-ups | Module-level arrays in `crm/page.tsx` + `mock-data.ts` | Hard reload / server restart |
@@ -584,7 +607,7 @@ If the UI renders as unstyled HTML (no CSS), a stale production `.next` build is
 
   **Accounting ≠ Treasury distinction**: Treasury handles student payments, OR generation, cash receiving. Accounting handles financial records, budget allocation, expense tracking, cashflow, reporting, procurement expenses, payroll-ready records.
 
-  **Accounting nav group** (10 items): Dashboard, General Ledger, Journal Entries, Chart of Accounts, Cashflow, Expenses, Approvals, Payroll, Analytics, Reports.
+  **Accounting nav group** (11 items): Dashboard, General Ledger, Journal Entries, Chart of Accounts, Cashflow, Expenses, Fee Management, Approvals, Payroll, Analytics, Reports.
 
   **Dashboard** (`/staff/accounting`) — Rebuilt with 6 stat cards (Total Institutional Funds, Revenue YTD, Expenses YTD, Net Cashflow, Budget Utilization %, Pending Approvals). Integration sync row showing Treasury/Purchasing/AMS/HRIS record counts. Monthly cashflow AreaChart. Expense breakdown PieChart. Department budget progress bars. Recent journal entries list. Pending approvals list. Quick-action buttons to key sub-pages.
 
@@ -601,6 +624,24 @@ If the UI renders as unstyled HTML (no CSS), a stale production `.next` build is
   **Analytics** (`/staff/accounting/analytics`) — Financial analytics dashboard. Period filter (Month/Quarter/Year). Stat cards: Total Revenue, Total Expenses, Net Surplus/Deficit (green/red), Budget Utilization %. Monthly Revenue vs Expenses BarChart (6 months). Expense Breakdown PieChart by category. Department Budget Utilization horizontal bar chart (green<80%, amber 80-99%, red≥100%). Revenue Sources PieChart from COA revenue accounts. Top Spending Departments table with utilization % and trend arrows. Financial Health Indicators: Liquidity Ratio, Debt Ratio, Revenue Growth %, Operating Margin %.
 
   **Mock data additions** (all in `mock-data.ts`): `MOCK_CHART_OF_ACCOUNTS` (28 accounts), `MOCK_JOURNAL_ENTRIES` (7 entries), `MOCK_FIN_APPROVALS` (3 approvals), `MOCK_PAYROLL_RUNS` (2 runs). Persistence: same as all mock data — resets on hard reload.
+
+- **Talk to Agent (AgentChatWidget)** — `src/components/shared/AgentChatWidget.tsx`. A floating teal button (`bottom-6 right-6 z-[998]`, below modals but above header/sidebar) rendered in all three portal layouts (`staff/layout.tsx`, `teacher/layout.tsx`, `student/layout.tsx`). Opens a chat panel where users can start or continue a support conversation with a live staff agent. State is persisted in **Supabase via Prisma** — not mock data. Polls `GET /api/agent-chats` every 2 seconds to surface new messages. Chat number format: `CHAT-NNNNNN`.
+
+  **Agent Chat data model** (in `prisma/schema.prisma`):
+  - `AgentChat` — `id`, `chatNumber` (unique), `userId`, `userName`, `userRole`, `portal`, `department`, `subject`, `status` (`OPEN | ASSIGNED | RESOLVED | CLOSED`), optional `agentId`/`agentName`, timestamps.
+  - `AgentChatMessage` — `id`, `chatId` (FK → AgentChat, cascade delete), `senderType` (`USER | AGENT | SYSTEM`), `senderId`, `senderName`, `content`, `isRead`, `timestamp`.
+
+  **API routes** (all use Prisma, no mock data):
+  - `GET /api/agent-chats` — list chats for the current user (or all chats for staff agents)
+  - `POST /api/agent-chats` — create a new chat
+  - `GET /api/agent-chats/[id]` — fetch a single chat with messages
+  - `PATCH /api/agent-chats/[id]` — update status or assign agent
+  - `GET /api/agent-chats/[id]/messages` — fetch messages for a chat
+  - `POST /api/agent-chats/[id]/messages` — post a new message
+
+- **Agent Inbox** (`/staff/agent-inbox`) — Staff-side interface for managing all incoming user chats. Visible to staff roles in the sidebar. Shows a list of all chats grouped by status; clicking a chat opens the conversation thread. Agents can reply, change status, and assign chats. Polls `/api/agent-chats` every 2 seconds for new activity.
+
+- **Fee Management** (`/staff/accounting/fees`) — ACCOUNTING + SUPER_ADMIN only. Accounting defines the institutional fee structure (tuition rates, miscellaneous fees, lab fees, etc.) which is then synced/referenced by Treasury when generating Student Accounts (SOA). Part of the Accounting nav group. Fee records are scoped to `schoolId`.
 
 - **REST API v1** (`/api/v1/`) — External-facing REST API with API key authentication. Accessible to all admin roles via `/staff/api` (Code2 icon in sidebar).
 
@@ -653,8 +694,6 @@ If the UI renders as unstyled HTML (no CSS), a stale production `.next` build is
 - LMS: `conditionalRelease` stored in type but no evaluation logic implemented
 - API v1: persist API keys to DB (currently `MOCK_API_KEYS` resets on server restart)
 
-## Switching to PostgreSQL
+## PostgreSQL / Supabase — already active
 
-1. `DATABASE_URL=postgresql://…` in `.env.local`
-2. `provider = "postgresql"` in `prisma/schema.prisma`
-3. `npx prisma migrate dev --name init` instead of `db:push`
+The database has been migrated from SQLite to Supabase-hosted PostgreSQL. `prisma/schema.prisma` already uses `provider = "postgresql"` with `directUrl`. The `.env` file (not `.env.local`) is what Prisma CLI and `seed.ts` read — keep secrets there. `npm run db:migrate` creates and applies a migration file; `npm run db:push` applies schema changes without a file (useful for rapid dev iteration).

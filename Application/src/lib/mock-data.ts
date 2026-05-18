@@ -263,21 +263,7 @@ export const MOCK_ASSIGNMENTS: Assignment[] = []
 
 export const MOCK_QUIZZES: Quiz[] = []
 
-export const MOCK_GRADES: Grade[] = [
-  // Demo student (Ethan Dela Cruz) — CS101 (enr_d1), PUBLISHED grade
-  {
-    id: 'grade_d1', enrollmentId: 'enr_d1',
-    quizAverage: 85, assignmentAverage: 88, midtermGrade: 82, finalExamGrade: 87,
-    finalGrade: 85.7, letterGrade: '1.50', status: 'PASSED',
-    gradedBy: 'Prof. Roberto Santos', gradedAt: '2025-11-15T10:00:00Z',
-    createdAt: '2025-08-12T00:00:00Z',
-  },
-  // Other CS101 students (enr_01–enr_04)
-  { id: 'grade_01', enrollmentId: 'enr_01', quizAverage: 78, assignmentAverage: 82, midtermGrade: 75, finalExamGrade: 80, finalGrade: 78.9, letterGrade: '2.00', status: 'PASSED', createdAt: '2025-08-12T00:00:00Z' },
-  { id: 'grade_02', enrollmentId: 'enr_02', quizAverage: 92, assignmentAverage: 90, midtermGrade: 88, finalExamGrade: 91, finalGrade: 90.5, letterGrade: '1.00', status: 'PASSED', createdAt: '2025-08-12T00:00:00Z' },
-  { id: 'grade_03', enrollmentId: 'enr_03', quizAverage: 65, assignmentAverage: 70, midtermGrade: 68, finalExamGrade: 72, finalGrade: 68.6, letterGrade: '3.00', status: 'PASSED', createdAt: '2025-08-12T00:00:00Z' },
-  { id: 'grade_04', enrollmentId: 'enr_04', quizAverage: 55, assignmentAverage: 60, midtermGrade: 58, finalExamGrade: 62, finalGrade: 58.6, letterGrade: '5.00', status: 'FAILED', createdAt: '2025-08-12T00:00:00Z' },
-]
+export const MOCK_GRADES: Grade[] = []
 
 // Default grade criteria per offering — teacher can customize weights
 export const MOCK_GRADE_CRITERIA: import('@/types').GradeCriteria[] = []
@@ -318,24 +304,7 @@ export const MOCK_PIPELINE_STATS: PipelineStats = {
 // ─── Grade Finalization ───────────────────────────────────────────────────────
 // Submissions created by faculty; approved by Registrar.
 // Grades are pushed to MOCK_GRADES only on approval.
-export const MOCK_GRADE_SUBMISSIONS: GradeSubmission[] = [
-  {
-    id: 'gsub_1', offeringId: 'off_1', semesterId: 'sem_1',
-    facultyId: 'f_1', facultyName: 'Prof. Roberto Santos',
-    subjectCode: 'CS101', subjectName: 'Introduction to Programming', section: 'BSCS-1A',
-    status: 'PUBLISHED',
-    entries: [
-      { enrollmentId: 'enr_d1', studentId: 'st_demo', studentName: 'Ethan Dela Cruz', studentNo: '2025-00000', quizAverage: 85, assignmentAverage: 88, midtermGrade: 82, finalExamGrade: 87, finalGrade: 85.7, letterGrade: '1.50', gradeStatus: 'PASSED' },
-      { enrollmentId: 'enr_01', studentId: 'st_001', studentName: 'Angela Reyes',      studentNo: '2025-00001', quizAverage: 78, assignmentAverage: 82, midtermGrade: 75, finalExamGrade: 80, finalGrade: 78.9, letterGrade: '2.00', gradeStatus: 'PASSED' },
-      { enrollmentId: 'enr_02', studentId: 'st_002', studentName: 'Marco Santos',      studentNo: '2025-00002', quizAverage: 92, assignmentAverage: 90, midtermGrade: 88, finalExamGrade: 91, finalGrade: 90.5, letterGrade: '1.00', gradeStatus: 'PASSED' },
-      { enrollmentId: 'enr_03', studentId: 'st_003', studentName: 'Bianca Garcia',     studentNo: '2025-00003', quizAverage: 65, assignmentAverage: 70, midtermGrade: 68, finalExamGrade: 72, finalGrade: 68.6, letterGrade: '3.00', gradeStatus: 'PASSED' },
-      { enrollmentId: 'enr_04', studentId: 'st_004', studentName: 'Joshua Cruz',       studentNo: '2025-00004', quizAverage: 55, assignmentAverage: 60, midtermGrade: 58, finalExamGrade: 62, finalGrade: 58.6, letterGrade: '5.00', gradeStatus: 'FAILED' },
-    ],
-    submittedAt: '2025-11-14T09:00:00Z',
-    closedAt:    '2025-11-14T14:00:00Z', closedBy: 'Rosa Registrar',
-    publishedAt: '2025-11-15T10:00:00Z', publishedBy: 'Rosa Registrar',
-  },
-]
+export const MOCK_GRADE_SUBMISSIONS: GradeSubmission[] = []
 // offeringIds whose grades have been submitted (locked from editing)
 export const LOCKED_OFFERINGS = new Set<string>()
 
@@ -390,9 +359,8 @@ export const MOCK_BUDGET_EXPENSES: BudgetExpense[] = [
   { id: 'bex_10',budgetId: 'bud_4', department: 'Arts & Sciences',      description: 'Theater Production Props',    amount: 52000,  date: '2025-02-20', recordedBy: 'Clara Accounting' },
 ]
 
-// ─── LMS Seed Data ────────────────────────────────────────────────────────────
-// Seeds programs, subjects, offerings, enrollments, and LMS content for demo.
-;(function seedLMS() {
+// ─── LMS Seed Data (disabled — start fresh) ──────────────────────────────────
+void (function seedLMS() {
   // Programs
   if (MOCK_PROGRAMS.length === 0) {
     MOCK_PROGRAMS.push(
@@ -806,13 +774,7 @@ export const MOCK_BUDGET_EXPENSES: BudgetExpense[] = [
 
 // ─── LMS Data Arrays ──────────────────────────────────────────────────────────
 
-export const MOCK_LMS_ANNOUNCEMENTS: LMSAnnouncement[] = [
-  { id: 'ann_1', offeringId: 'off_1', title: 'Welcome to CS101!', content: 'Welcome everyone! Please review the syllabus attached in Module 1. Our first lab session will be next week. Make sure Python is installed on your machine before then.', authorName: 'Prof. Roberto Santos', isPinned: true, createdAt: '2025-08-12T08:00:00Z' },
-  { id: 'ann_2', offeringId: 'off_1', title: 'Quiz 1 Schedule', content: 'Quiz 1 covering Module 1 will be held on August 20 during class hours (8:00–8:30 AM). Open your LMS at exactly 8:00. No late access will be granted.', authorName: 'Prof. Roberto Santos', isPinned: false, createdAt: '2025-08-18T10:00:00Z' },
-  { id: 'ann_3', offeringId: 'off_1', title: 'Assignment 1 Grades Released', content: 'Grades for Assignment 1 (Hello World Program) have been posted. Please check your gradebook. If you have questions, visit during consultation hours: MWF 2:00–4:00 PM.', authorName: 'Prof. Roberto Santos', isPinned: false, createdAt: '2025-08-26T10:00:00Z' },
-  { id: 'ann_4', offeringId: 'off_2', title: 'Welcome to CS201!', content: 'This semester we will cover essential data structures that every programmer must know. Please review prerequisite topics in Python before our second meeting.', authorName: 'Prof. Roberto Santos', isPinned: true, createdAt: '2025-08-12T09:00:00Z' },
-  { id: 'ann_5', offeringId: 'off_3', title: 'Welcome to Web Development!', content: 'Welcome! We will use VS Code as our primary editor. Please install it along with the Live Server extension. See you on Friday!', authorName: 'Maria Reyes', isPinned: true, createdAt: '2025-08-12T09:30:00Z' },
-]
+export const MOCK_LMS_ANNOUNCEMENTS: LMSAnnouncement[] = []
 
 export const MOCK_LMS_ATTENDANCE: LMSAttendance[] = [
   // CS101 attendance
